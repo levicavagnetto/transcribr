@@ -1,0 +1,52 @@
+[project]
+name = "transcribr"
+version = "0.1.0"
+description = "Collects a store's Ravon call recordings, transcribes them and matches calls to people."
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[project.scripts]
+transcribr = "transcribr.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+    "pyright>=1.1.390",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["transcribr"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "S", "SIM", "PL", "RUF"]
+ignore = ["PLR2004"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR0913"]
+
+[tool.pyright]
+include = ["transcribr", "tests"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
+strict = ["transcribr"]
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config -m \"not realsite and not model and not slow\""
+markers = [
+    "realsite: talks to the real Ravon site; only run by the user on request",
+    "model: needs the real speech and speaker models",
+    "slow: takes more than a few seconds",
+]

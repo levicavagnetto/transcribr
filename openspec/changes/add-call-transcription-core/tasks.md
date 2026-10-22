@@ -2,10 +2,10 @@
 
 ## 1. Project scaffolding
 
-- [ ] 1.1 Create the backend project in `backend/` (Python 3.12, uv, package `transcribr`, the layout from design D14) with ruff, pyright and pytest configured; verify `uv run pytest` runs and reports zero tests collected without errors
-- [ ] 1.2 Create the frontend project in `frontend/` (Vite, React, TypeScript, MUI `@mui/material` with Emotion and `@mui/icons-material`, TanStack Query, React Router, Vitest), plus the custom theme in `src/theme.ts` matching the mockups; verify `npm run build` and `npm test` succeed on the empty app
+- [x] 1.1 Create the backend project in `backend/` (Python 3.12, uv, package `transcribr`, the layout from design D14) with ruff, pyright and pytest configured; verify `uv run pytest` runs and reports zero tests collected without errors
+- [x] 1.2 Create the frontend project in `frontend/` (Vite, React, TypeScript, MUI `@mui/material` with Emotion and `@mui/icons-material`, TanStack Query, React Router, Vitest), plus the custom theme in `src/theme.ts` matching the mockups; verify `npm run build` and `npm test` succeed on the empty app
 - [x] 1.3 Add a root `.gitignore` that excludes `.env`, `*.har`, all audio extensions (except named test fixtures), instance data, databases, model files and build output, and verify `git check-ignore` reports each pattern as ignored for sample paths while `.env.example`, audio fixtures and the `openspec/` files stay tracked
-- [ ] 1.4 Add a `check` script that runs the linter, the type checker and both test suites, and verify it exits 0
+- [x] 1.4 Add a `check` script that runs the linter, the type checker and both test suites, and verify it exits 0
 
 ## 2. Store, migrations and settings
 
