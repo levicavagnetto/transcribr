@@ -162,8 +162,8 @@ A `jobs` table holds one row per pending job. A job is either `transcribe` (a ca
 - **Build stages:**
   1. `node:22-slim` builds the UI.
   2. A model stage downloads the `small.en` CTranslate2 files and the two sherpa-onnx models, at pinned revisions, and checks each file against a SHA-256.
-  3. `python:3.12-slim` installs the backend with `uv sync --frozen` and copies in the UI files and models.
-- **Python version:** 3.12 is used for its wide wheel support (ctranslate2, sherpa-onnx, av) on both architectures.
+  3. `python:3.14-slim` installs the backend with `uv sync --frozen` and copies in the UI files and models.
+- **Python version:** 3.14, the newest release with Linux wheels for every native dependency (ctranslate2, sherpa-onnx, onnxruntime, PyAV 18) on both amd64 and arm64, checked on PyPI on 2026-10-22. Python 3.15 (released 2026-10-09) has no ctranslate2, sherpa-onnx or onnxruntime wheels yet, so moving to it later is a version bump once they ship. v1 also ran faster-whisper on 3.14 on the dev PC.
 - **Multi-arch:** images are built for amd64 and arm64 with `docker buildx`.
 - **Runtime:**
   - The container runs as a non-root user (uid 10001), and `/data` is the named volume.

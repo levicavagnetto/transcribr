@@ -2,7 +2,7 @@
 
 ## 1. Project scaffolding
 
-- [x] 1.1 Create the backend project in `backend/` (Python 3.12, uv, package `transcribr`, the layout from design D14) with ruff, pyright and pytest configured; verify `uv run pytest` runs and reports zero tests collected without errors
+- [x] 1.1 Create the backend project in `backend/` (Python 3.14, uv, package `transcribr`, the layout from design D14) with ruff, pyright and pytest configured; verify `uv run pytest` passes a package smoke test (imports every package, runs the CLI)
 - [x] 1.2 Create the frontend project in `frontend/` (Vite, React, TypeScript, MUI `@mui/material` with Emotion and `@mui/icons-material`, TanStack Query, React Router, Vitest), plus the custom theme in `src/theme.ts` matching the mockups; verify `npm run build` and `npm test` succeed on the empty app
 - [x] 1.3 Add a root `.gitignore` that excludes `.env`, `*.har`, all audio extensions (except named test fixtures), instance data, databases, model files and build output, and verify `git check-ignore` reports each pattern as ignored for sample paths while `.env.example`, audio fixtures and the `openspec/` files stay tracked
 - [x] 1.4 Add a `check` script that runs the linter, the type checker and both test suites, and verify it exits 0
@@ -87,7 +87,7 @@
 
 ## 11. Packaging and deployment
 
-- [ ] 11.1 Write the multi-stage Dockerfile (UI build, a model stage with pinned revisions and SHA-256 checks, a Python 3.12 slim runtime, non-root uid 10001), and verify `docker build` succeeds and `docker run --rm <image> id -u` prints 10001
+- [ ] 11.1 Write the multi-stage Dockerfile (UI build, a model stage with pinned revisions and SHA-256 checks, a Python 3.14 slim runtime, non-root uid 10001), and verify `docker build` succeeds and `docker run --rm <image> id -u` prints 10001
 - [ ] 11.2 Write `compose.yaml` (`web` and `worker` from one image, a named volume, `restart: unless-stopped`, health checks, the worker waiting for a healthy web, only the web port published) and `.env.example`; verify `docker compose up -d` gives two healthy services
 - [ ] 11.3 Verify the no-runtime-downloads requirement by running the stack with outbound network restricted to the fake Ravon and processing a fixture call end to end
 - [ ] 11.4 Build and run the arm64 image (buildx with emulation or an arm64 host), and verify that the fixture pipeline test passes inside it
