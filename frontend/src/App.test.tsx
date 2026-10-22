@@ -24,4 +24,11 @@ describe("theme", () => {
     expect(light?.appBar.background).toBe(ubuntu.darkAubergine);
     expect(dark?.background.paper).toBe(ubuntu.coolGrey);
   });
+
+  it("keeps the app bar dark aubergine in the dark scheme", () => {
+    // MUI's AppBar ignores its colour in dark mode and paints palette.AppBar.darkBg instead.
+    const dark = theme.colorSchemes.dark?.palette;
+    expect(dark?.AppBar.darkBg).toBe(ubuntu.darkAubergine);
+    expect(dark?.AppBar.darkColor).toBe(ubuntu.white);
+  });
 });

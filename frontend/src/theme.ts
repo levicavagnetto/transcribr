@@ -80,6 +80,8 @@ export const theme = createTheme({
         text: { primary: ubuntu.white, secondary: ubuntu.warmGrey },
         divider: "rgba(174,167,159,0.24)",
         appBar: { background: ubuntu.darkAubergine, inactive: ubuntu.darkAubergine25 },
+        // MUI paints the AppBar with these in dark mode, overriding styleOverrides.
+        AppBar: { darkBg: ubuntu.darkAubergine, darkColor: ubuntu.white },
         highlight: { background: ubuntu.orange50, text: ubuntu.textGrey },
         attribution: {
           confidentBg: ubuntu.midAubergine,
