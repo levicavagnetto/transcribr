@@ -1,0 +1,309 @@
+openapi: 3.0.0
+info:
+  title: Ravon Admin (internal, reverse-engineered)
+  version: 1.0.0
+  description: >-
+    Undocumented internal API of admin.ravon.net, inferred from browser captures.
+    Auth is a session cookie from the /auth/login form POST. It may change without notice.
+servers:
+- url: https://admin.ravon.net
+  description: The default server
+paths:
+  /ajax.html:
+    get:
+      summary: RPC-style endpoint; the action is selected with REQUEST
+      description: |-
+        - getSessionTTL: returns SessionTTL.
+        - heartbeat: keepalive; empty 200 body. The page sends it every ~5 s.
+        - updateManagerSession: realtime calls feed, polled ~1/s. First call with
+          sessionID empty and reset=true (may 304), then reset=false with the returned
+          sessionID; each response carries only what changed since the last poll.
+      parameters:
+      - name: REQUEST
+        in: query
+        required: true
+        schema:
+          type: string
+          enum: [getSessionTTL, heartbeat, updateManagerSession]
+      - name: sessionID
+        in: query
+        required: false
+        description: updateManagerSession only. Empty on the first poll, then the value returned.
+        schema:
+          type: string
+      - name: reset
+        in: query
+        required: false
+        description: updateManagerSession only. true requests full state.
+        schema:
+          type: boolean
+      - name: _
+        in: query
+        required: false
+        description: Cache-buster (epoch ms).
+        schema:
+          type: number
+      responses:
+        '200':
+          description: Shape depends on REQUEST.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/SessionTTL'
+                - $ref: '#/components/schemas/ManagerSessionUpdate'
+        '304':
+          description: Not modified (seen on the first updateManagerSession poll).
+  /api/v1/ntp/{id}:
+    get:
+      summary: GET ntp by id
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  t0:
+                    type: number
+                  t1:
+                    type: number
+                  t2:
+                    type: number
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: _
+        in: query
+        required: false
+        schema:
+          type: number
+  /realtime/manage_recorded_calls.html:
+    get:
+      summary: GET manage_recorded_calls.html
+      responses:
+        '200':
+          description: OK
+          content: {}
+    post:
+      summary: POST manage_recorded_calls.html
+      responses:
+        '200':
+          description: OK
+          content: {}
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                queue:
+                  type: string
+                user:
+                  type: string
+                conferencePK:
+                  type: string
+                startDate:
+                  type: string
+                endDate:
+                  type: string
+                ani:
+                  type: string
+                dnis:
+                  type: string
+                query:
+                  type: string
+  /recordings/{id}:
+    get:
+      summary: GET recordings by id
+      responses:
+        '200':
+          description: OK
+          content: {}
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+x-path-templates:
+# Remove the ignore: prefix to generate an endpoint with its URL
+# Lines that are closer to the top take precedence, the matching is greedy
+- ignore:/auth/login
+- ignore:/auth/logout
+- ignore:/graphics/arrow-right-3.png
+- ignore:/graphics/date_clock.png
+- ignore:/graphics/deleteIcon.png
+- ignore:/graphics/favicon.png
+- ignore:/graphics/footer_background.png
+- ignore:/graphics/header_background.png
+- ignore:/graphics/icon_begin.png
+- ignore:/graphics/icon_end.png
+- ignore:/graphics/menu_background.png
+- ignore:/graphics/ravon_logo.png
+- ignore:/graphics/submenuAvailable.png
+- ignore:/realtime/realtime_calls.html
+- ignore:/scripts/application.js
+- ignore:/scripts/audio-player.js
+- ignore:/scripts/dateTimeTools/dateTimeTools.css
+- ignore:/scripts/dateTimeTools/dateTimeTools.js
+- ignore:/scripts/jquery/js/jquery.cookie.js
+- ignore:/scripts/jquery/js/jquery.form.js
+- ignore:/scripts/jquery/js/scroll-follower.js
+- ignore:/scripts/jquery/js/tooltip.js
+- ignore:/scripts/json2.js
+- ignore:/scripts/ntp.js
+- ignore:/scripts/pdfobject.js
+- ignore:/scripts/periodicalupdater.js
+- ignore:/scripts/real-time-state.js
+- ignore:/scripts/realtime.js
+- ignore:/scripts/set.js
+- ignore:/scripts/swfobject/swfobject.js
+- ignore:/scripts/timer.js
+- ignore:/scripts/userPreference.js
+- ignore:/scripts/webdatarocks/css/webdatarocks.css
+- ignore:/scripts/webdatarocks/js/webdatarocks.js
+- ignore:/scripts/webdatarocks/js/webdatarocks.toolbar.js
+- ignore:/stylesheet.css
+- ignore:/vendor/bootstrap/current/bootstrap.bundle.min.js
+- ignore:/vendor/bootstrap/current/bootstrap.min.css
+- ignore:/vendor/bootstrap/current/bootstrap.min.css.map
+- ignore:/vendor/bootstrap/current/bootstrap_tooltips.js
+- ignore:/vendor/dragula/3.7.3/dragula.min.css
+- ignore:/vendor/dragula/3.7.3/dragula.min.js
+- ignore:/vendor/bootstrap/current/bootstrap.bundle.min.js.map
+components:
+  schemas:
+    SessionTTL:
+      type: object
+      properties:
+        id: {type: string, description: Server session id}
+        ttl: {type: integer, description: Seconds left (1800 max)}
+        max: {type: integer}
+    ManagerSessionUpdate:
+      type: object
+      description: Delta since the previous poll.
+      properties:
+        sessionID: {type: integer, description: Send back as sessionID on the next poll}
+        updatedCalls: {type: array, items: {$ref: '#/components/schemas/Call'}}
+        removedCalls: {type: array, description: uniqueIDs of calls that ended, items: {type: string}}
+        updatedUsers: {type: array, items: {$ref: '#/components/schemas/User'}}
+        updatedQueues: {type: array, items: {$ref: '#/components/schemas/Queue'}}
+        updatedMailboxes: {type: array, items: {$ref: '#/components/schemas/Mailbox'}}
+        updatedHints: {type: array, items: {$ref: '#/components/schemas/Hint'}}
+        updatedPhonebooks: {type: array, items: {$ref: '#/components/schemas/Phonebook'}}
+    Call:
+      type: object
+      description: One call leg (Asterisk channel). A call is a tree of legs via parentCall/childCalls.
+      properties:
+        uniqueID: {type: string, example: '1792686976.53086', description: Asterisk uniqueid; also used in removedCalls}
+        channelName: {type: string, example: PJSIP/proxy_sip01-00004405}
+        companyID: {type: string}
+        callStart: {type: integer, description: Epoch ms}
+        answeredAt: {type: integer, nullable: true, description: Epoch ms}
+        state: {type: string, description: Asterisk channel state, enum: [Down, Ring, Ringing, Up]}
+        isRinging: {type: boolean}
+        callerIDName: {type: string, nullable: true}
+        callerIDNumber: {type: string}
+        calledNumber: {type: string}
+        fromString: {type: string, description: Display text}
+        toString: {type: string, description: Display text}
+        fromUser: {type: string, nullable: true, description: Username if internal}
+        toUser: {type: string, nullable: true}
+        parentCall: {type: string, nullable: true}
+        childCalls: {type: array, items: {type: string}}
+        queue: {type: string, nullable: true}
+        queuePosition: {type: integer, nullable: true}
+        queueEntryTime: {type: integer, nullable: true}
+        queueCallback: {type: boolean}
+        ivr: {type: string, nullable: true}
+        conference: {type: string, nullable: true}
+        parkingSpace: {type: string, nullable: true}
+        unparkAt: {type: integer, nullable: true}
+    User:
+      type: object
+      properties:
+        username: {type: string, description: '<companyID>-<shortUsername>'}
+        shortUsername: {type: string}
+        name: {type: string}
+        firstName: {type: string}
+        lastName: {type: string}
+        url: {type: string, description: HTML link}
+        extension: {type: string}
+        email: {type: string}
+        voicemail: {type: boolean}
+        status: {type: string, nullable: true}
+        statusInt: {type: integer, nullable: true}
+        hint: {type: string, nullable: true}
+        queues: {type: array, items: {type: string}}
+        available: {type: boolean}
+        paused: {type: boolean}
+        pauseCode: {type: string, nullable: true}
+        pauseCodeText: {type: string, nullable: true}
+        newMessages: {type: integer, nullable: true}
+        calls: {type: array, description: uniqueIDs of this user's calls, items: {type: string}}
+    Queue:
+      type: object
+      properties:
+        username: {type: string}
+        shortUsername: {type: string}
+        companyID: {type: string}
+        name: {type: string}
+        url: {type: string}
+        extension: {type: string}
+        voicemail: {type: boolean}
+        avgHoldTime: {type: number}
+        abandonedCalls: {type: integer}
+        avgAbandonTime: {type: number}
+        answeredCalls: {type: integer}
+        avgAnswerTime: {type: number}
+        completedCalls: {type: integer}
+        avgTalkTime: {type: number}
+        calls: {type: array, items: {type: string}}
+        members:
+          type: object
+          description: Keyed by username
+          additionalProperties: {$ref: '#/components/schemas/QueueMember'}
+        newMessages: {type: integer, nullable: true}
+    QueueMember:
+      type: object
+      properties:
+        status: {type: string, example: Not In Use}
+        statusID: {type: integer}
+        statusChangedAt: {type: integer, description: Epoch ms}
+        paused: {type: boolean}
+        pauseCode: {type: string, nullable: true}
+        pauseCodeName: {type: string, nullable: true}
+        rna: {type: integer, description: Ring-no-answer count}
+        membership: {type: string, example: Static}
+        membershipID: {type: string}
+        callsTaken: {type: integer}
+        lastCallAt: {type: integer, nullable: true}
+    Mailbox:
+      type: object
+      properties:
+        username: {type: string}
+        companyID: {type: string}
+        extension: {type: string}
+        isQueue: {type: boolean}
+        isUser: {type: boolean}
+        mailboxes: {type: object}
+        newMessages: {type: integer}
+    Hint:
+      type: object
+      properties:
+        extension: {type: string}
+        status: {type: string}
+        statusInt: {type: integer}
+        available: {type: boolean}
+        parkingSpace: {type: string, nullable: true}
+        phones: {type: array, items: {type: object}}
+    Phonebook:
+      type: object
+      properties:
+        username: {type: string}
+        entries: {type: array, items: {type: object}}

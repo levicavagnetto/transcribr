@@ -1,0 +1,44 @@
+# Secrets and captures: never commit
+.env
+.env.*
+!.env.example
+*.har
+
+# Call audio: never commit (test fixtures are allowed by name in tests/fixtures/audio/)
+*.mp3
+*.wav
+*.ogg
+*.m4a
+*.flac
+!backend/tests/fixtures/audio/*.mp3
+!backend/tests/fixtures/audio/*.wav
+
+# Instance data (database, backups, logs) and downloaded models
+/data/
+data/
+*.db
+*.db-shm
+*.db-wal
+models/
+*.onnx
+*.bin
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / frontend build
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

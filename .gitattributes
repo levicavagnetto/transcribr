@@ -1,0 +1,10 @@
+# LF everywhere: the app runs in Linux containers, and CRLF breaks shell scripts there
+* text=auto eol=lf
+
+*.ps1 text eol=crlf
+
+*.mp3 binary
+*.wav binary
+*.png binary
+*.ico binary
+*.woff2 binary

@@ -1,0 +1,72 @@
+schema: spec-driven
+
+context: |
+  Transcribr v2: pulls a tire shop's call recordings from the Ravon PBX admin site
+  (admin.ravon.net), transcribes them, and attributes calls to service writers so they
+  can research customer requests in their own ChatGPT.
+  Architecture draft and block diagram: docs/architecture.md (keep it in sync with design.md).
+
+  Hard constraints:
+  - Fresh rewrite. ../transcribr_old (v1) may be used only for verified facts about Ravon and
+    the audio, never for its design, plans or code structure.
+  - Bare-bones but robust: prefer the fewest moving parts that still survive restarts,
+    crashes and Ravon outages. No janky workarounds.
+  - Ravon is read-only. Only the transcribr app talks to Ravon, through a request allow
+    list. Never call any action that changes data there (live-call tools, deletes, edits).
+  - LLMs never talk to Ravon. ChatGPT -> MCP server -> transcribr REST API -> transcribr DB.
+    The MCP server is a thin read-only client of the REST API with no DB, Ravon or
+    credential access.
+  - Ravon's user/extension filters do not identify the service writer (inbound calls land
+    on the main store line). Attribution comes from the transcript (name said in the call)
+    and voiceprints, stored per call as person + method + confidence.
+  - Profiles (people, name variants, voiceprints) and all settings are configured per
+    instance in the UI and stored in /data. Nothing person- or store-specific in code.
+  - Visibility: everyone on the shop network sees all calls and can use every call-screen
+    action (including "Speaker N is <person>") without logging in; profiles are filters.
+    People and Settings live under /admin behind one admin login, created on first visit
+    with a one-time setup code from the server log. The server enforces admin auth on
+    every /api/v1/admin route; hiding links is not protection.
+    Keep attribution (data) separate from access rules so access can tighten later.
+  - Transcription rule: every call is listed. Calls that end while the server is running
+    are transcribed automatically. Calls missed while it was off are listed as
+    "Not transcribed" and are only transcribed when a user clicks Transcribe. Never
+    auto-backfill.
+  - Audio is never stored; fetch it from Ravon into memory when needed. Recordings are mono.
+  - Runs on a shop PC from one Docker image (multi-stage: Node builds the React +
+    TypeScript + MUI UI) as two compose services sharing one named volume: `web`
+    (FastAPI serves UI + API) and `worker` (poller + pipeline). Must run on
+    Linux, Windows (Docker Desktop/WSL2) and macOS, amd64 and arm64. CPU only, no GPU.
+  - Phase 1: Ravon -> transcribe -> attribute -> UI with "Copy for ChatGPT".
+    Phase 2: read-only MCP server reachable by ChatGPT (Plus/Pro developer mode) through
+    a secure tunnel with OAuth.
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
