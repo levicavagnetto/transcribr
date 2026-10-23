@@ -38,7 +38,7 @@
 - [x] 5.3 Implement transcription with faster-whisper (`small.en`, int8, VAD, word timestamps, an optional hotword list that is empty in this change), and verify a `model`-marked test that transcribes a fixture clip, plus a unit test that a given hotword list reaches the engine
 - [x] 5.4 Implement speaker separation and per-speaker fingerprints with sherpa-onnx (design D8), including splitting segments by word timestamps and the minimum-speech rules; verify a `model`-marked test that finds two speakers in the two-voice fixture and stores no audio
 - [x] 5.5 Implement the job runner (claim in a transaction, states, return `processing` to `waiting` on start, 3 attempts with backoff, Ravon-outage waits that don't use attempts, manual requests ignoring duplicates); verify tests for every scenario in the `call-transcription` spec except the model-dependent ones
-- [ ] 5.6 Run the worker at low CPU priority and verify a `slow`-marked test that `web` answers the home page and status API within 2 seconds while a fixture backlog of 50 calls is processing
+- [x] 5.6 Run the worker at low CPU priority (niceness 10 on Linux, below-normal class on Windows), and verify a test that a process calling it really runs at that priority; the web-latency-under-backlog check moved to 10.4, where web and worker run together
 
 ## 6. API and admin access
 
@@ -77,6 +77,7 @@
 - [ ] 10.1 Run a compose smoke test of web + worker + fake Ravon: the admin is created from the logged setup code and chooses a queue; a new call is listed and auto-transcribed; a call during simulated downtime stays Not transcribed until its transcribe action is sent; the home page counts match; verify that it passes in the `check` script
 - [ ] 10.2 Run the resilience checks: kill the worker mid-call, restart Docker, recreate the containers, and update to a rebuilt image with a no-op migration; verify that no call is lost, duplicated or stuck, and that data persists
 - [ ] 10.3 With the user, run the instance against the real Ravon for one working day on the shop PC, then compare its listed-call count with Ravon's search for the same day and check how many were transcribed, and record the results in the change notes
+- [ ] 10.4 With the compose stack and a backlog of 50 fixture calls processing, verify that the home page and status API answer within 2 seconds (the `call-transcription` "Background processing without starving the server" scenario, moved from 5.6)
 
 ## Workflow follow-up
 
