@@ -11,9 +11,10 @@ from transcribr.models import EMBEDDING_MODEL, SEGMENTATION_MODEL
 from transcribr.pipeline.audio import SAMPLE_RATE, Samples
 from transcribr.pipeline.transcribe import Segment, Transcript, Word
 
-# Provisional: on the synthetic two-voice clip 0.3-0.4 separates the voices correctly, 0.45
-# merges them and 0.2 splits them. A larger value gives fewer speakers. Recheck on real calls.
-CLUSTERING_THRESHOLD = 0.35
+# Provisional (larger = fewer speakers). 0.42-0.44 gives the right count on both test sources:
+# a real 2-person call (0.35-0.40 split the staff voice off, 0.5+ merged both) and the synthetic
+# clip (0.45+ merged it). Calibrated on more real calls in add-call-attribution.
+CLUSTERING_THRESHOLD = 0.43
 MIN_TURN_FOR_FINGERPRINT = 1.5  # seconds
 MIN_SPEECH_FOR_FINGERPRINT = 3.0  # seconds
 

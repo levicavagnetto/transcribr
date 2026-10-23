@@ -24,3 +24,19 @@ The clip is two Windows TTS voices acting out a 37-second shop call, encoded lik
 - **Names with hints:** with hotwords `Tire Pros, Silverado, Nolan`, both came out exactly. Name hints are planned for `add-call-attribution`. A shop vocabulary list (store name, vehicle models, brands) may be worth adding there too.
 - **Speaker separation:** sherpa-onnx's clustering threshold separates the two voices correctly at 0.3-0.4. At 0.45 it merges them, and at 0.2 it splits them into 4. The provisional default is 0.35. This is synthetic speech, so recheck it on real calls in `add-call-attribution`'s calibration.
 - **Fingerprint similarity per turn** (WeSpeaker ResNet34): same voice 0.85-0.94, different voices 0.60-0.69. That's a useful first reference for the voice thresholds.
+
+## 5.4 Speaker separation on one real call (2026-10-22)
+
+Recording 26554163 is a 1.6-minute call between a staff member and a customer. The transcript was clear, including names, a spelled-out surname and times.
+
+| Threshold | Real call | Synthetic clip |
+|---|---|---|
+| 0.35 (first default) | 4 speakers: the staff voice was split off near the end, plus a 0-second fragment | 2 |
+| 0.38-0.40 | 3 (2 real speakers plus a 0-second fragment) | 2 |
+| **0.42-0.44** | **2 (33 s and 34 s)** | **2** |
+| 0.45 | 2 | 1 (merged) |
+| 0.50+ | merged (66 s and 3 s) | 1 |
+
+- **Default changed to 0.43,** the middle of the window that's right for both sources.
+- **This is one real call,** so `add-call-attribution`'s calibration (20 or more real calls) should confirm or move it.
+- **Line splits at speaker changes are approximate.** A turn boundary can fall one word off, as in "...I've got to be at / work at 7".
