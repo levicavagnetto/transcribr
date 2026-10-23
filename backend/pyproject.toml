@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Collects a store's Ravon call recordings, transcribes them and matches calls to people."
 requires-python = ">=3.14,<3.15"
 dependencies = [
+    "httpx>=0.28",
     "pydantic>=2.9",
     "tzdata>=2024.1",
 ]
@@ -36,7 +37,7 @@ select = ["E", "F", "W", "I", "UP", "B", "S", "SIM", "PL", "RUF"]
 ignore = ["PLR2004"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "PLR0913"]
+"tests/**" = ["S101", "S105", "S106", "S107", "PLR0911", "PLR0913", "PLC0415", "SIM103"]
 
 [tool.pyright]
 include = ["transcribr", "tests"]

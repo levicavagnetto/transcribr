@@ -16,12 +16,12 @@
 
 ## 3. Ravon client and fake Ravon
 
-- [ ] 3.1 Implement the allow-list guard (spec `ravon-ingest`: read-only request allow list, date-bounded searches), and verify unit tests for every allowed and refused case plus a property-based test comparing it with a plain reference implementation
-- [ ] 3.2 Implement the httpx client with the guard as its transport, manual redirect checks, pacing, and backoff on consecutive failures; verify that a request bypassing the client's helpers is still refused, and that the backoff timing works with a fake clock
-- [ ] 3.3 Implement login, session reuse, one re-login on expiry, and stop-on-rejected-credentials with the credential-hash reset; verify against the fake Ravon for the expired-session, rejected-login and retry-login scenarios
-- [ ] 3.4 Implement the parsers for the queue `<select>` and the `DataTable({ data: [...] })` results (recording ID from the checkbox value), with a loud failure when the page format changes; verify with synthetic pages copying the real structure, including an empty result and a changed format
-- [ ] 3.5 Implement the audio download into memory with a `Content-Length` check; verify that a truncated response fails, and that a test scanning the temp and data folders after downloads finds no audio files
-- [ ] 3.6 Build `tests/fake_ravon/` (login, search page, search submit, recordings, controllable faults) and verify that the client test suite runs entirely against it with no network access
+- [x] 3.1 Implement the allow-list guard (spec `ravon-ingest`: read-only request allow list, date-bounded searches), and verify unit tests for every allowed and refused case plus a property-based test comparing it with a plain reference implementation
+- [x] 3.2 Implement the httpx client with the guard as its transport, manual redirect checks, pacing, and backoff on consecutive failures; verify that a request bypassing the client's helpers is still refused, and that the backoff timing works with a fake clock
+- [x] 3.3 Implement login, session reuse, one re-login on expiry, and stop-on-rejected-credentials with the credential-hash reset; verify against the fake Ravon for the expired-session, rejected-login and retry-login scenarios
+- [x] 3.4 Implement the parsers for the queue `<select>` and the `DataTable({ data: [...] })` results (recording ID from the checkbox value), with a loud failure when the page format changes; verify with synthetic pages copying the real structure, including an empty result and a changed format
+- [x] 3.5 Implement the audio download into memory with a `Content-Length` check; verify that a truncated response fails, and that a test scanning the temp and data folders after downloads finds no audio files
+- [x] 3.6 Build `tests/fake_ravon/` (login, search page, search submit, recordings, controllable faults) and verify that the client test suite runs entirely against it with no network access
 - [ ] 3.7 Write a `realsite`-marked smoke command (`transcribr ravon-check`) that logs in, lists the queues and counts one day's calls without downloading audio, and verify it with the user against the real site (the user runs it; record the queue count and call count in the change notes)
 
 ## 4. Ingest: poller, uptime and catch-up

@@ -6,7 +6,7 @@ import pytest
 
 from transcribr.redaction import RedactingFormatter, redact, register_secret
 
-PASSWORD = "Tr1cky&Pass=word"  # noqa: S105 - a fake secret for the test
+PASSWORD = "Tr1cky&Pass=word"
 
 
 @pytest.fixture
