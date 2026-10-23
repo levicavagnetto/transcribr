@@ -4,8 +4,12 @@ version = "0.1.0"
 description = "Collects a store's Ravon call recordings, transcribes them and matches calls to people."
 requires-python = ">=3.14,<3.15"
 dependencies = [
+    "av>=16,<19",
+    "faster-whisper>=1.2.1",
     "httpx>=0.28",
+    "numpy>=2.1",
     "pydantic>=2.9",
+    "sherpa-onnx>=1.12",
     "tzdata>=2024.1",
 ]
 

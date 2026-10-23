@@ -1,6 +1,7 @@
 """Listing calls and queuing their transcription jobs."""
 
 import sqlite3
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from transcribr.ravon.parse import Recording
@@ -67,3 +68,28 @@ def oldest_start_utc(conn: sqlite3.Connection) -> str | None:
 def newest_start_utc(conn: sqlite3.Connection) -> str | None:
     value: str | None = conn.execute("SELECT max(start_utc) FROM calls").fetchone()[0]
     return value
+
+
+def is_listed(conn: sqlite3.Connection) -> Callable[[int], bool]:
+    """For the Ravon guard: audio may be fetched for any recording this instance has listed."""
+
+    def check(recording_id: int) -> bool:
+        return (
+            conn.execute("SELECT 1 FROM calls WHERE id = ?", (recording_id,)).fetchone() is not None
+        )
+
+    return check
+
+
+def request_transcription(conn: sqlite3.Connection, call_id: int, now: datetime) -> bool:
+    """Queue a Not transcribed or Failed call with a fresh retry count. False if nothing changed."""
+    with transaction(conn):
+        changed = conn.execute(
+            "UPDATE calls SET state = 'waiting', failure_reason = NULL"
+            " WHERE id = ? AND state IN ('not_transcribed', 'failed')",
+            (call_id,),
+        ).rowcount
+        if changed:
+            conn.execute("DELETE FROM jobs WHERE type = ? AND call_id = ?", (TRANSCRIBE, call_id))
+            enqueue_transcribe(conn, call_id, now)
+    return bool(changed)

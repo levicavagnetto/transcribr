@@ -30,6 +30,7 @@ def test_defaults_without_credentials() -> None:
     assert config.ravon_base_url == "https://admin.ravon.net"
     assert config.port == 8000
     assert config.data_dir == Path("/data")
+    assert config.models_dir == Path("/models")
     assert not config.has_ravon_credentials
 
 

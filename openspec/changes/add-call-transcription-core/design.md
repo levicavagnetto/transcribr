@@ -104,7 +104,7 @@ A `jobs` table holds one row per pending job. A job has a type; this change has 
   - Cloud speech APIs: audio would leave the shop, and they cost money.
 
 ### D8. Speakers and fingerprints: sherpa-onnx
-- **Speaker separation:** sherpa-onnx's offline speaker diarization runs a pyannote segmentation model and a speaker-embedding model, both ONNX. The number of speakers is found by a clustering threshold.
+- **Speaker separation:** sherpa-onnx's offline speaker diarization runs a pyannote segmentation model (pyannote segmentation 3.0) and a speaker-embedding model (WeSpeaker ResNet34, English), both ONNX. The number of speakers is found by a clustering threshold, provisionally 0.35. On the synthetic clip, 0.3-0.4 separates two voices and a larger value gives fewer speakers; see `notes.md`.
 - **Matching segments to speakers:**
   - Each whisper segment goes to the speaker it overlaps most.
   - A segment that spans a speaker change is split at word boundaries using the word timestamps.

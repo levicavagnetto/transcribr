@@ -75,6 +75,13 @@ class Worker:
         rejected: str | None = State(conn).get(RAVON_REJECTED_FINGERPRINT)
         return cls(conn, make_client(rejected), clock=clock, stop=stop, process_one=process_one)
 
+    @property
+    def client(self) -> RavonClient:
+        return self._client
+
+    def set_processor(self, process_one: JobProcessor) -> None:
+        self._process_one = process_one
+
     def run(self, *, until: float | None = None) -> None:
         """Loop until `stop` is set (or the monotonic clock passes `until`, for tests)."""
         if not self._started:

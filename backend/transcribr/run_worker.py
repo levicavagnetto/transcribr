@@ -8,7 +8,10 @@ from datetime import datetime
 from types import FrameType
 
 from transcribr.config import Config
+from transcribr.pipeline.process import JobRunner, ModelPipeline
+from transcribr.priority import lower_priority
 from transcribr.ravon.client import RavonClient
+from transcribr.store.calls import is_listed
 from transcribr.store.db import connect
 from transcribr.store.migrate import MIGRATIONS_DIR, schema_version
 from transcribr.timeutil import utcnow
@@ -51,6 +54,7 @@ def run_worker(config: Config, *, process_one: JobProcessor | None = None) -> in
 
 
 def _run(config: Config, stop: threading.Event, process_one: JobProcessor | None) -> int:
+    lower_priority()
     conn = connect(config.database_path)
     expected = len(list(MIGRATIONS_DIR.glob("*.sql")))
     deadline = time.monotonic() + SCHEMA_WAIT_SECONDS
@@ -69,10 +73,15 @@ def _run(config: Config, stop: threading.Event, process_one: JobProcessor | None
             config.ravon_base_url,
             config.ravon_username,
             password,
+            is_known_recording=is_listed(conn),
             rejected_fingerprint=rejected,
         )
 
     worker = Worker.from_state(conn, make_client, clock=clock, stop=stop, process_one=process_one)
+    if process_one is None:
+        runner = JobRunner(conn, worker.client, ModelPipeline(config.models_dir))
+        runner.recover()
+        worker.set_processor(runner.process_one)
     worker.run()
     log.info("worker stopped")
     return 0

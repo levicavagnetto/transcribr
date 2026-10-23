@@ -33,11 +33,11 @@
 
 ## 5. Processing pipeline
 
-- [ ] 5.1 Add a script that generates the synthetic two-voice test clips (short, small, no real voices) and commit the clips; verify the tests can decode them
-- [ ] 5.2 Implement audio decoding to 16 kHz mono float32 in memory (PyAV, `av<19` pin), and verify a test on the fixture clips with no temporary files created
-- [ ] 5.3 Implement transcription with faster-whisper (`small.en`, int8, VAD, word timestamps, an optional hotword list that is empty in this change), and verify a `model`-marked test that transcribes a fixture clip, plus a unit test that a given hotword list reaches the engine
-- [ ] 5.4 Implement speaker separation and per-speaker fingerprints with sherpa-onnx (design D8), including splitting segments by word timestamps and the minimum-speech rules; verify a `model`-marked test that finds two speakers in the two-voice fixture and stores no audio
-- [ ] 5.5 Implement the job runner (claim in a transaction, states, return `processing` to `waiting` on start, 3 attempts with backoff, Ravon-outage waits that don't use attempts, manual requests ignoring duplicates); verify tests for every scenario in the `call-transcription` spec except the model-dependent ones
+- [x] 5.1 Add a script that generates the synthetic two-voice test clips (short, small, no real voices) and commit the clips; verify the tests can decode them
+- [x] 5.2 Implement audio decoding to 16 kHz mono float32 in memory (PyAV, `av<19` pin), and verify a test on the fixture clips with no temporary files created
+- [x] 5.3 Implement transcription with faster-whisper (`small.en`, int8, VAD, word timestamps, an optional hotword list that is empty in this change), and verify a `model`-marked test that transcribes a fixture clip, plus a unit test that a given hotword list reaches the engine
+- [x] 5.4 Implement speaker separation and per-speaker fingerprints with sherpa-onnx (design D8), including splitting segments by word timestamps and the minimum-speech rules; verify a `model`-marked test that finds two speakers in the two-voice fixture and stores no audio
+- [x] 5.5 Implement the job runner (claim in a transaction, states, return `processing` to `waiting` on start, 3 attempts with backoff, Ravon-outage waits that don't use attempts, manual requests ignoring duplicates); verify tests for every scenario in the `call-transcription` spec except the model-dependent ones
 - [ ] 5.6 Run the worker at low CPU priority and verify a `slow`-marked test that `web` answers the home page and status API within 2 seconds while a fixture backlog of 50 calls is processing
 
 ## 6. API and admin access

@@ -5,6 +5,7 @@ import logging
 import sys
 from collections.abc import Sequence
 from datetime import date, timedelta
+from pathlib import Path
 
 from transcribr import __version__
 from transcribr.redaction import RedactingFormatter
@@ -32,6 +33,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="queue value to count (repeatable; default: every queue Ravon lists)",
     )
     commands.add_parser("worker", help="run the worker service (polling and transcription)")
+    fetch = commands.add_parser("fetch-models", help="download and verify the speech models")
+    fetch.add_argument(
+        "--dest", type=Path, default=None, help="folder (default: TRANSCRIBR_MODELS_DIR)"
+    )
     return parser
 
 
@@ -60,6 +65,22 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         logging.getLogger("transcribr").setLevel(logging.INFO)
         return run_worker(load_config())
+    if args.command == "fetch-models":
+        from transcribr.config import load_config  # noqa: PLC0415
+        from transcribr.models import ModelError, fetch_models, verify_models  # noqa: PLC0415
+
+        logging.getLogger("transcribr").setLevel(logging.INFO)
+        dest: Path = args.dest or load_config().models_dir
+        try:
+            fetch_models(dest)
+        except ModelError as error:
+            print(f"fetch-models failed: {error}", file=sys.stderr)
+            return 1
+        problems = verify_models(dest)
+        for problem in problems:
+            print(problem, file=sys.stderr)
+        print("models verified" if not problems else "models are incomplete", file=sys.stderr)
+        return 1 if problems else 0
     return 0
 
 

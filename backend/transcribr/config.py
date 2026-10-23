@@ -24,6 +24,7 @@ class Config:
     ravon_base_url: str
     port: int
     data_dir: Path
+    models_dir: Path
 
     @property
     def has_ravon_credentials(self) -> bool:
@@ -66,4 +67,5 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         ravon_base_url=_base_url(source.get("RAVON_BASE_URL", DEFAULT_RAVON_BASE_URL)),
         port=_port(source.get("TRANSCRIBR_PORT", "8000")),
         data_dir=Path(source.get("TRANSCRIBR_DATA_DIR", "/data")),
+        models_dir=Path(source.get("TRANSCRIBR_MODELS_DIR", "/models")),
     )
