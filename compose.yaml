@@ -1,0 +1,53 @@
+# Transcribr: `docker compose up -d` next to a `.env` file (copy it from .env.example).
+# Both services run the same image and share one named volume; they talk only through it.
+
+x-transcribr: &transcribr
+  image: ${TRANSCRIBR_IMAGE:-transcribr:local}
+  build:
+    context: .
+    target: runtime
+  restart: unless-stopped
+  init: true
+  volumes:
+    - data:/data
+  environment:
+    RAVON_USERNAME: ${RAVON_USERNAME:?set RAVON_USERNAME in .env}
+    RAVON_PASSWORD: ${RAVON_PASSWORD:?set RAVON_PASSWORD in .env}
+    RAVON_BASE_URL: ${RAVON_BASE_URL:-https://admin.ravon.net}
+    TRANSCRIBR_PORT: "8000" # inside the container; the host port is set under `ports`
+
+services:
+  web:
+    <<: *transcribr
+    command: ["transcribr", "web"]
+    ports:
+      - "${TRANSCRIBR_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 1m
+      start_interval: 2s
+
+  worker:
+    <<: *transcribr
+    command: ["transcribr", "worker"]
+    depends_on:
+      web:
+        condition: service_healthy # the web service prepares the database
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "transcribr", "worker-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 3m
+      start_interval: 5s
+
+volumes:
+  data:

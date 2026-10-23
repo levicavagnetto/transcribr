@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import sqlite3
 import sys
 from collections.abc import Sequence
@@ -48,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:  # noqa: PLR0911 - one return per command
+    # onnxruntime (used by faster-whisper) would otherwise send usage telemetry to Microsoft;
+    # a running instance talks to Ravon only.
+    os.environ.setdefault("ORT_DISABLE_TELEMETRY", "1")
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command is None:

@@ -153,7 +153,8 @@ A `jobs` table holds one row per pending job. A job has a type; this change has 
 - **Runtime:**
   - The container runs as a non-root user (uid 10001), and `/data` is the named volume.
   - Compose sets `restart: unless-stopped` and a health check for each service.
-  - The worker's health check is `transcribr worker-health`, which checks the heartbeat is less than 90 seconds old.
+  - The worker's health check is `transcribr worker-health`, which checks the heartbeat is less than 90 seconds old. The worker sends heartbeats from a thread of its own, so a long transcription doesn't look like a stopped worker.
+  - `ORT_DISABLE_TELEMETRY=1` and `HF_HUB_OFFLINE=1` are set, because onnxruntime (inside faster-whisper) otherwise sends usage telemetry to Microsoft, and a running instance talks only to Ravon.
 - **Logs:** JSON lines to stdout (`docker compose logs`) and a rotating file under `/data/logs`. Credentials, cookies and form values are redacted.
 - **Backup:** `docker compose exec web transcribr backup` writes a consistent `/data/backups/transcribr-<timestamp>.db` using the SQLite backup API. The README documents copying it out and restoring it.
 

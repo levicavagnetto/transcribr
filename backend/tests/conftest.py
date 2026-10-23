@@ -5,6 +5,7 @@ from collections.abc import Iterator
 import pytest
 
 _real_connect = socket.socket.connect
+_real_create_connection = socket.create_connection
 
 
 def _is_loopback(address: object) -> bool:
@@ -34,9 +35,15 @@ def no_network(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) 
                 )
             _real_connect(sock, address)  # type: ignore[arg-type]
 
-        def refuse(*_args: object, **_kwargs: object) -> None:
-            raise AssertionError("tests must not open network connections (use the fake Ravon)")
+        def guarded_create_connection(
+            address: tuple[str, int], *args: object, **kwargs: object
+        ) -> socket.socket:
+            if not _is_loopback(address):
+                raise AssertionError(
+                    f"tests must not open network connections (got {address!r}; use the fake Ravon)"
+                )
+            return _real_create_connection(address, *args, **kwargs)  # type: ignore[arg-type]
 
         monkeypatch.setattr(socket.socket, "connect", guarded_connect)
-        monkeypatch.setattr(socket, "create_connection", refuse)
+        monkeypatch.setattr(socket, "create_connection", guarded_create_connection)
     yield
