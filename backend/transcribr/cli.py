@@ -31,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest="queues",
         help="queue value to count (repeatable; default: every queue Ravon lists)",
     )
+    commands.add_parser("worker", help="run the worker service (polling and transcription)")
     return parser
 
 
@@ -53,6 +54,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         day = args.day or date.today() - timedelta(days=1)
         return ravon_check(load_config(), day=day, queues=args.queues, out=sys.stdout)
+    if args.command == "worker":
+        from transcribr.config import load_config  # noqa: PLC0415
+        from transcribr.run_worker import run_worker  # noqa: PLC0415
+
+        logging.getLogger("transcribr").setLevel(logging.INFO)
+        return run_worker(load_config())
     return 0
 
 

@@ -66,6 +66,7 @@ A `jobs` table holds one row per pending job. A job has a type; this change has 
 - Every 30 seconds the worker writes a heartbeat. If the last span ended within the last 3 minutes, the heartbeat extends it; otherwise it starts a new span.
 - A newly listed call is queued automatically only if its end time (`Start Time` + `Minutes`) falls inside a span. A 2-minute grace on each side covers clock jitter.
 - On the very first start, nothing earlier than the first span qualifies.
+- **Each queue also has a "followed since" time,** recorded when the worker first sees it selected (and cleared if it's deselected). A call is auto-queued only if it ended inside a span **and** after its queue was followed. This covers the spec's "add a queue later" rule: a new queue's older calls are listed but never queued, even if the server was running when they ended.
 - A Ravon outage doesn't break the span, because the worker keeps running, so calls that ended during it still qualify.
 - **Why:** it's simple and durable, and it captures exactly what the user asked for. It doesn't depend on whether a poll succeeded.
 - **Alternative:** "last successful poll" times. They would wrongly treat Ravon outages as server downtime.
@@ -74,9 +75,11 @@ A `jobs` table holds one row per pending job. A job has a type; this change has 
 - Each poll searches each selected queue from 2 hours before the last successful poll up to now. The overlap catches long calls, which only appear once they've ended.
 - On start, the worker catches up from 1 day before the newest known call up to now, in chunks of 7 days or less.
 - On the first start, it lists the last 7 days.
-- "Load earlier" lists the 7 days before the oldest listed call.
+- "Load earlier" lists the 7 days before the earliest time already listed. That boundary is stored (`listed_from`), set by the first-start listing and moved back by each "load earlier". It's not taken from the oldest call, which can sit well inside the listed range on quiet days.
 - The recording ID is the key, and inserts that would duplicate it are ignored.
 - The default poll interval is 2 minutes.
+- **Times:** Ravon's `Start Time` is in the store time zone setting. It's stored as-is (`start_local`) and converted to UTC (`start_utc`) on insert. Search windows are computed in UTC and converted to store-local wall time for the search form.
+- **"Load earlier"** runs in the worker, which owns the Ravon session: the API queues a `load_earlier` job, and the worker carries it out on its next loop.
 - Requests go out one at a time, at least 1 second apart. After 5 failures in a row, the worker backs off with increasing delays, up to a 10-minute cap.
 
 ### D6. The Ravon client enforces the allow list at the transport layer

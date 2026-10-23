@@ -7,10 +7,12 @@ invented data.
 
 import json
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from html import escape
 from urllib.parse import parse_qsl
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -43,6 +45,9 @@ class FakeRavon:
         }
     )
     calls: list[FakeCall] = field(default_factory=list[FakeCall])
+    # Like the real site, list a call only once it has ended (when a clock is given).
+    now: Callable[[], datetime] | None = None
+    zone: str = "America/Chicago"
 
     # Faults
     reject_logins: bool = False
@@ -137,8 +142,15 @@ class FakeRavon:
             for c in self.calls
             if (not form["queue"] or c.queue == form["queue"])
             and start <= datetime.strptime(c.start_local, DATE_FORMAT) <= end
+            and self._has_ended(c)
         ]
         return self._search_page(rows)
+
+    def _has_ended(self, call: FakeCall) -> bool:
+        if self.now is None:
+            return True
+        start = datetime.strptime(call.start_local, DATE_FORMAT).replace(tzinfo=ZoneInfo(self.zone))
+        return start + timedelta(minutes=call.minutes) <= self.now()
 
     def _search_page(self, rows: list[FakeCall]) -> httpx.Response:
         options = '<option value="">All Queues</option>' + "".join(

@@ -86,7 +86,7 @@ On start, the system SHALL list the calls that occurred while it was off, from s
 
 #### Scenario: Load earlier calls
 - **WHEN** a user asks to load earlier calls
-- **THEN** the system lists the 7 days before the oldest listed call, without queuing them
+- **THEN** the system lists the 7 days before the earliest time it has already listed, without queuing them, so repeated requests reach further back with no gaps
 
 ### Requirement: Fetch recording audio into memory
 The system SHALL download a recording's audio into memory, check that the byte count matches the declared length, and never write recording audio to disk.

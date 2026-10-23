@@ -26,10 +26,10 @@
 
 ## 4. Ingest: poller, uptime and catch-up
 
-- [ ] 4.1 Implement uptime spans from worker heartbeats (design D4), and verify tests for extending a span, starting a new span after a gap of more than 3 minutes, and the 2-minute grace
-- [ ] 4.2 Implement the poll cycle (design D5: per-queue windows, inserts that ignore duplicate IDs, auto-queue only when the call's end falls inside a span), and verify tests for all scenarios under "Poll for new calls" and "Automatic transcription only for calls that ended while the server was running"
-- [ ] 4.3 Implement the catch-up on start, the first-start 7-day listing, and "load earlier" in 7-day chunks; verify the restart-after-downtime, first-start and load-earlier scenarios against the fake Ravon
-- [ ] 4.4 Implement the worker main loop (heartbeat, settings reread, poll schedule, job processing, graceful shutdown), and verify an integration test that runs the worker against the fake Ravon for a simulated hour with a fake clock
+- [x] 4.1 Implement uptime spans from worker heartbeats (design D4), and verify tests for extending a span, starting a new span after a gap of more than 3 minutes, and the 2-minute grace
+- [x] 4.2 Implement the poll cycle (design D5: per-queue windows, inserts that ignore duplicate IDs, auto-queue only when the call's end falls inside a span), and verify tests for all scenarios under "Poll for new calls" and "Automatic transcription only for calls that ended while the server was running"
+- [x] 4.3 Implement the catch-up on start, the first-start 7-day listing, and "load earlier" in 7-day chunks; verify the restart-after-downtime, first-start and load-earlier scenarios against the fake Ravon
+- [x] 4.4 Implement the worker main loop (heartbeat, settings reread, poll schedule, job processing, graceful shutdown), and verify an integration test that runs the worker against the fake Ravon for a simulated hour with a fake clock
 
 ## 5. Processing pipeline
 
