@@ -108,6 +108,29 @@ function StoreQueues({ selected, onChange }: { selected: string[]; onChange: (qu
   );
 }
 
+// Digits only, without leading zeros: a type="number" input keeps "02" on screen because React
+// leaves it alone while its number matches. Empty shows as empty and saves as 0, which the server rejects.
+function MinutesField({ value, onChange, error }: { value: number; onChange: (minutes: number) => void; error?: string }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => {
+    setText((current) => (Number(current) === value ? current : String(value)));
+  }, [value]);
+  return (
+    <TextField
+      label="Check every (minutes)"
+      value={text}
+      onChange={(e) => {
+        const digits = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+        setText(digits);
+        onChange(digits === "" ? 0 : Number(digits));
+      }}
+      error={Boolean(error)}
+      helperText={error ?? "1 to 30"}
+      slotProps={{ htmlInput: { inputMode: "numeric" } }}
+    />
+  );
+}
+
 function RavonLogin() {
   const { data } = useStatus();
   const retry = useRetryLogin();
@@ -216,14 +239,10 @@ export function Settings() {
         {fieldError("store_queues") && <Alert severity="error">{fieldError("store_queues")}</Alert>}
         <Section title="Checking for new calls">
           <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, maxWidth: 640 }}>
-            <TextField
-              label="Check every (minutes)"
-              type="number"
+            <MinutesField
               value={draft.poll_interval_minutes}
-              onChange={(e) => set("poll_interval_minutes", Number(e.target.value))}
-              error={Boolean(fieldError("poll_interval_minutes"))}
-              helperText={fieldError("poll_interval_minutes") ?? "1 to 30"}
-              slotProps={{ htmlInput: { step: 1 } }}
+              onChange={(minutes) => set("poll_interval_minutes", minutes)}
+              error={fieldError("poll_interval_minutes")}
             />
             <Autocomplete
               options={zones}

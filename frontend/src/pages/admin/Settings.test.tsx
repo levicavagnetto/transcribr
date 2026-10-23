@@ -43,6 +43,17 @@ describe("the settings page", () => {
     expect(put?.headers["X-Transcribr"]).toBe("1");
   });
 
+  it("drops leading zeros and letters from the minutes", async () => {
+    serve();
+    renderApp("/admin/settings");
+    const interval = await screen.findByLabelText("Check every (minutes)");
+    await userEvent.clear(interval);
+    await userEvent.type(interval, "02");
+    expect(interval).toHaveValue("2");
+    await userEvent.type(interval, "x0");
+    expect(interval).toHaveValue("20");
+  });
+
   it("shows a rejected value next to its field", async () => {
     const api = serve();
     api.on("PUT /admin/settings", () => ({
