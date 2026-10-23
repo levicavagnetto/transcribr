@@ -2,16 +2,16 @@
 
 ## Purpose
 
-Keeps the instance's configuration and people management behind a single admin login at its own address, while the call screens stay open to everyone on the shop network.
+Keeps the instance's configuration behind a single admin login at its own address, while the rest of the web app stays open to everyone on the shop network.
 
 ## ADDED Requirements
 
 ### Requirement: Admin area at its own address
-The People and Settings screens SHALL live under `/admin` and SHALL require the admin login. The API endpoints behind them SHALL also require the login, checked by the server on every request. The address being separate is not, by itself, protection.
+Admin screens, starting with Settings, SHALL live under `/admin` and SHALL require the admin login. The API endpoints behind them SHALL also require the login, checked by the server on every request. The address being separate is not, by itself, protection.
 
 #### Scenario: Not logged in
 - **WHEN** someone opens `/admin/settings` without being logged in as admin
-- **THEN** they see the admin login page, and no settings or profile data is sent to the browser
+- **THEN** they see the admin login page, and no admin data is sent to the browser
 
 #### Scenario: Calling an admin endpoint directly
 - **WHEN** a request without a valid admin session calls an admin API endpoint, read or write
@@ -19,7 +19,7 @@ The People and Settings screens SHALL live under `/admin` and SHALL require the 
 
 #### Scenario: Logged in
 - **WHEN** the admin logs in
-- **THEN** the People and Settings screens open, and the navigation shows links to them and a Log out button
+- **THEN** the admin screens open, and the navigation shows links to them, Back to the main app, and a Log out button
 
 ### Requirement: Create the admin on first visit with a setup code
 While no admin account exists, the instance SHALL generate a one-time setup code and write it to the server log. The first visit to `/admin` SHALL ask for that code, then for a new admin username and password. The code SHALL stop working once the admin is created.

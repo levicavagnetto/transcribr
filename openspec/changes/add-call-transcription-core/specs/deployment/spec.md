@@ -25,15 +25,15 @@ The image SHALL contain every model and asset the instance needs. A running inst
 - **THEN** the instance starts, transcribes calls and matches voices normally
 
 ### Requirement: Persistent data in one volume
-All instance data SHALL live in one named data volume: the database, settings, profiles, transcripts, voice fingerprints and logs. Removing and recreating the container SHALL lose nothing.
+All instance data SHALL live in one named data volume: the database (calls, transcripts, voice fingerprints, settings and everything later features add), backups and logs. Removing and recreating the container SHALL lose nothing.
 
 #### Scenario: Recreate the container
 - **WHEN** the container is removed and started again from the same or a newer image
-- **THEN** all calls, transcripts, profiles and settings are present
+- **THEN** all instance data is present
 
 #### Scenario: Back up and restore
 - **WHEN** an operator runs the documented backup command and restores it on another host
-- **THEN** the new instance has the same calls, transcripts, profiles and settings
+- **THEN** the new instance has the same data as the old one
 
 ### Requirement: Unattended operation
 The instance SHALL start when Docker starts and restart automatically after a crash. It SHALL report health to Docker, so an unhealthy instance can be seen and restarted.

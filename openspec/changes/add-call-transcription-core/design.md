@@ -22,12 +22,13 @@ Verified facts this design relies on (measured against the real site and audio d
 
 **Goals:**
 - As few moving parts as possible, each of which survives a crash, restart, reboot or Ravon outage without losing or duplicating work.
-- Clear boundaries: the Ravon client, ingest, pipeline, attribution, API and UI can each be tested alone.
-- Attribution can be recomputed from stored data at any time, so thresholds and profiles can be tuned after the fact.
+- Clear boundaries: the Ravon client, ingest, pipeline, API and UI can each be tested alone.
+- Store everything later changes need (transcripts, word timestamps, per-speaker fingerprints), so `add-call-browser` and `add-call-attribution` never have to re-download audio.
 
 **Non-Goals:**
 - The MCP server, the tunnel and OAuth. They belong to the follow-up change, `add-mcp-server`. This change only keeps the API GET-pure and documented.
-- Per-person user accounts. There is one admin login for the admin area, and the call screens are open to everyone on the shop network.
+- Per-person user accounts. There is one admin login for the admin area, and the rest of the web app is open to everyone on the shop network.
+- The call screens (`add-call-browser`) and people profiles and matching (`add-call-attribution`). Their designs live in those changes.
 - Summaries or research done by the app. ChatGPT does that.
 - GPU acceleration, live (in-call) processing, and any use of Ravon's live-call page or `ajax.html` endpoints.
 - More than one store per instance. Another store means another instance.
@@ -47,14 +48,14 @@ They share one named volume. The operator still runs one `docker compose up -d`.
   - Separate images: two things to build and version.
 
 ### D2. SQLite (WAL mode) on a named Docker volume as the only datastore
-Calls, jobs, transcripts, FTS5 search, fingerprints, profiles, attributions, settings and uptime all live in one SQLite file. Both services open it with WAL mode and a busy timeout. Only `web` applies migrations, and `worker` waits until `web` is healthy before starting.
+Calls, jobs, transcripts, fingerprints, settings, uptime and admin data all live in one SQLite file, and later changes add their tables to it through migrations. Both services open it with WAL mode and a busy timeout. Only `web` applies migrations, and `worker` waits until `web` is healthy before starting.
 - **Why:** there's no database server to run, backups are a single file, and load is tiny (about 70 calls a day).
 - **Named volume, never a bind mount:** on Docker Desktop for Windows and macOS, bind mounts go through a file-sharing layer where SQLite locking is unreliable. A named volume lives on the Linux VM's own file system.
 - **Alternative:** Postgres, which would mean an extra service, extra upgrades and extra backup steps for no real benefit at this scale.
 - **Migrations:** numbered SQL files tracked with `PRAGMA user_version`. Before a migration runs, a backup copy is made with the SQLite online backup API, and each migration runs in a transaction.
 
 ### D3. The job queue is a table
-A `jobs` table holds one row per pending job. A job is either `transcribe` (a call ID) or `rematch` (scope: all calls, or one profile).
+A `jobs` table holds one row per pending job. A job has a type; this change has only `transcribe` (a call ID). The type column lets later changes add job types (for example a rematch) without a schema rewrite.
 - The single worker claims the oldest job in a transaction.
 - On start, the worker returns every `processing` call to `waiting`.
 - Retries track an attempt count, with a backoff of 1, 5 and then 30 minutes.
@@ -91,7 +92,7 @@ A `jobs` table holds one row per pending job. A job is either `transcribe` (a ca
 - `web` has its own client instance, limited to login and recording GET, for Listen. Each service keeps its own session, which Ravon allows. The login-failed state is shared through the database.
 
 ### D7. Transcription: faster-whisper `small.en`, int8, CPU
-- **Settings:** VAD filter on, word timestamps on. The `hotwords` option gets every profile's name variants, which meets "Recognize profile names reliably".
+- **Settings:** VAD filter on, word timestamps on. The transcriber takes an optional list of hotwords, passed to faster-whisper's `hotwords` option. It is empty in this change; `add-call-attribution` fills it with people's name variants.
 - **Decoding:** audio bytes go through PyAV into 16 kHz mono float32 in memory and are never written to a file.
 - **Priority:** the worker runs at a low priority (niceness 10), so `web` stays responsive.
 - **Model choice:** the model name is a build argument, defaulting to `small.en`. A bigger model is a rebuild, not a code change.
@@ -111,54 +112,34 @@ A `jobs` table holds one row per pending job. A job is either `transcribe` (a ca
 - **Why:** it runs on CPU without PyTorch, its models are small (tens of MB), and it has wheels for Linux amd64 and arm64.
 - **Alternatives:**
   - pyannote.audio, SpeechBrain and WhisperX: all of them pull in PyTorch. The image would be several GB, and pyannote's gated models need a Hugging Face token.
-- **Telephone audio:** these models are trained on 16 kHz audio and ours is upsampled 8 kHz. Accuracy has to be measured on real calls before thresholds are fixed (task group 6).
+- **Telephone audio:** these models are trained on 16 kHz audio and ours is upsampled 8 kHz. How well fingerprints separate people is measured on real calls in `add-call-attribution`, before its thresholds are fixed.
 
-### D9. Attribution is recomputed from stored data
-- **Name evidence:**
-  - Take the transcript words whose start time falls in the first 30 seconds of speech, and normalize them (lowercase, punctuation removed).
-  - Fuzzy-match each name variant against word n-grams of the same length with `rapidfuzz` (ratio ≥ 88).
-- **Voice evidence:**
-  - The cosine similarity between each call speaker's fingerprint and each usable profile centroid.
-  - A profile is usable once it has 3 or more calls and 60 seconds or more of enrolled speech.
-  - The centroid is the normalized mean of the enrolled samples.
-- **Rules:** exactly as in the `call-attribution` spec.
-- **Storage:** an `attributions` table with one row per (call, profile). It records status (`confident`, `maybe`, `rejected`), source (`auto` or `manual`), method, name hit, best voice score and the matched speaker label.
-- **Rematch:** a job that deletes and recomputes only the `source=auto` rows, so manual rows always win. The worker queues a rematch whenever profiles or thresholds change. It's cheap, because it only reads stored text and vectors.
-- **Thresholds:** stored as settings. Their defaults come from the calibration in task group 6.
-
-### D10. API and UI
+### D9. API and UI
 - **API:** FastAPI under `/api/v1`, with Pydantic models and an auto-generated OpenAPI description.
   - Reads are GET-only and have no side effects.
   - Lists use cursor paging on (`start_time`, `id`).
-  - Text search uses SQLite FTS5 over transcript text. Phone search compares digits only.
-  - `GET /api/v1/calls/{id}/audio` streams the MP3 from Ravon through to the browser.
   - `GET /api/v1/health` is the health check for `web`.
 - **UI:** React + TypeScript, built with Vite.
   - TanStack Query refetches every 10 seconds, which covers the 30-second "Live updates" requirement without WebSockets or server-sent events.
-  - React Router handles the views: Calls, Call, People, Settings.
+  - React Router handles the views: the home page, `/admin/login`, `/admin/setup` and `/admin/settings`. Later changes add their own views.
   - Components come from **MUI** (`@mui/material`, Material Icons), chosen by the user. One custom theme (`frontend/src/theme.ts`) holds the palette, type, shape and component overrides, so screens use theme values and never one-off colors. The mockups are linked from `docs/architecture.md`.
-  - **Themes:** one `createTheme` call with `cssVariables: true` and `colorSchemes: { light, dark }`, both built only from the Ubuntu/Canonical palette and its published tints. The token tables are in `docs/architecture.md`. MUI's `InitColorSchemeScript` in `index.html` applies the saved or system scheme before React loads, so there's no flash. `useColorScheme()` drives a Light / Dark / System menu in the app bar, saved in browser storage. Every component uses theme tokens, never literal colours, so both themes come from one set of components.
+  - **Themes:** one `createTheme` call with `cssVariables: true` and `colorSchemes: { light, dark }`, both built only from the Ubuntu/Canonical palette and its published tints. The token tables are in `docs/architecture.md`. MUI's `InitColorSchemeScript` in `index.html` applies the saved or system scheme before React loads, so there's no flash. `useColorScheme()` drives a Light / Dark / System menu in the app bar, saved in browser storage under Transcribr's own keys (`transcribr-mode`, `transcribr-color-scheme`), because MUI's default `mui-mode` key is shared by every app on the same origin and a stale value there overrides the device setting. In dark mode MUI's AppBar ignores its colour and paints `palette.AppBar.darkBg`, so the dark scheme sets that to dark aubergine. Every component uses theme tokens, never literal colours, so both themes come from one set of components.
   - **Dark theme approach:** neutral grey grounds (text grey `#111111`, cool grey `#333333`) instead of large aubergine fields, with the dark aubergine kept for the app bar. Full-strength aubergine and orange are too dark or too low-contrast as text on dark grounds, so light tints from the palette take those roles: light aubergine 40% for primary, orange 60% for orange text and icons. Full Ubuntu orange stays for filled accents with dark labels.
   - Alternative: plain CSS with no component library. It's smaller, but every table, form field, dialog and snackbar would have to be built and made accessible by hand.
-- **Copy for ChatGPT:** the browser Clipboard API only works over HTTPS or on localhost, and the app is served as `http://<pc>:<port>` on the shop network.
-  - The button uses `navigator.clipboard` when it's available.
-  - Otherwise it falls back to a hidden textarea and `document.execCommand('copy')`.
-  - As a last resort it shows the text pre-selected in a box.
-  - **Alternative:** HTTPS with a self-signed certificate, which brings browser warnings on every device.
 
-### D11. Configuration split
+### D10. Configuration split
 - **Environment file** (`.env` next to the compose file):
   - `RAVON_USERNAME` and `RAVON_PASSWORD`
   - optionally `RAVON_BASE_URL`, defaulting to `https://admin.ravon.net`
   - `TRANSCRIBR_PORT`
-- **Database settings table:** everything else (queues, poll interval, time zone, prompt, thresholds), edited in the UI and validated with Pydantic.
+- **Database settings table:** everything else (queues, poll interval, time zone, and the settings later changes add), edited in the admin Settings screen and validated with Pydantic.
 - The worker rereads settings every loop, so changes apply without a restart.
 - **Why:** this keeps the password out of the database, the API and backups. Only the admin can change settings, and nobody, not even the admin, can read the Ravon password through the app.
 - **Login-failure lockout safety:** after a rejected login, the worker stops trying.
   - It tries again when the process restarts with different credentials (a hash of the credentials is compared).
   - It also tries again when someone clicks "Retry login" in the status banner.
 
-### D12. Image build and runtime
+### D11. Image build and runtime
 - **Build stages:**
   1. `node:22-slim` builds the UI.
   2. A model stage downloads the `small.en` CTranslate2 files and the two sherpa-onnx models, at pinned revisions, and checks each file against a SHA-256.
@@ -172,12 +153,11 @@ A `jobs` table holds one row per pending job. A job is either `transcribe` (a ca
 - **Logs:** JSON lines to stdout (`docker compose logs`) and a rotating file under `/data/logs`. Credentials, cookies and form values are redacted.
 - **Backup:** `docker compose exec web transcribr backup` writes a consistent `/data/backups/transcribr-<timestamp>.db` using the SQLite backup API. The README documents copying it out and restoring it.
 
-### D13. Admin access
+### D12. Admin access
 - **Routes:**
-  - The UI puts People and Settings under `/admin/people` and `/admin/settings`, plus `/admin/login` and `/admin/setup`.
-  - The API puts every profile-management and settings endpoint under `/api/v1/admin/...`.
+  - The UI puts admin screens under `/admin/...`: `/admin/settings`, `/admin/login` and `/admin/setup`. `add-call-attribution` adds `/admin/people`.
+  - The API puts every admin endpoint under `/api/v1/admin/...`.
   - A FastAPI dependency on that router enforces the admin session for every route. Hiding links in the UI is only for convenience.
-  - **Voice enrollment exception:** enrollment from a call ("Speaker N is …") is a call action at `/api/v1/calls/{id}/speakers/{label}`, so it stays open as the user decided. Removing an enrolled sample is admin-only.
 - **First visit:**
   - While no admin row exists, `web` generates a 10-character setup code on start and writes it to the log in a clearly marked line. Only its hash is stored.
   - `/admin/setup` takes the code, then a username and password. Creation happens in one transaction that also deletes the code, so it can't be reused.
@@ -193,13 +173,13 @@ A `jobs` table holds one row per pending job. A job is either `transcribe` (a ca
   - HTTP Basic auth. The browser caches it with no real logout, and it offers no protection against other sites.
   - A full user system. Not needed while there's one admin.
 
-### D14. Code layout
+### D13. Code layout
 ```
 backend/transcribr/
   ravon/        client.py (allow-list transport), parse.py, guard.py
   ingest/       poller.py, uptime.py
   pipeline/     audio.py, transcribe.py, diarize.py, process.py
-  attribution/  names.py, voice.py, rules.py, rematch.py
+  attribution/  (empty package; filled by add-call-attribution)
   store/        db.py, migrations/*.sql, repositories per table
   api/          app.py, routes/*.py, schemas.py
   settings.py, status.py, cli.py (web | worker | worker-health | backup)
@@ -209,7 +189,7 @@ docker/         Dockerfile, compose.yaml, .env.example
 ```
 Each package depends only on `store` and its own inputs, so each can be tested alone with fakes.
 
-### D15. Testing approach
+### D14. Testing approach
 - **Ravon client:**
   - Unit tests for the allow list, covering every allowed and refused case, plus a property-based test of the guard.
   - Parser tests against synthetic pages that copy the real structure, with no real customer data.
@@ -217,21 +197,17 @@ Each package depends only on `store` and its own inputs, so each can be tested a
 - **Pipeline:**
   - Tests with short synthetic two-voice audio clips, generated by a checked-in script and kept under a few hundred KB.
   - A `model`-marked test runs the real models.
-- **Attribution:** pure-function tests of the rules over fixed fingerprints and transcripts.
 - **API:** tests against a temporary database.
-- **UI:** Vitest with React Testing Library on the call list, the filters and the copy fallback.
-- **End-to-end:** one compose-based smoke test of web + worker + fake Ravon. Listing, auto-transcription, the missed-call rule and attribution are covered end to end.
+- **UI:** Vitest with React Testing Library on the shell, the banner, the theme menu, and the admin login, setup and Settings screens.
+- **End-to-end:** one compose-based smoke test of web + worker + fake Ravon. Listing, auto-transcription, the missed-call rule and the admin setup are covered end to end.
 
 ## Risks / Trade-offs
 
-- **Voice matching may be weak on 8 kHz mono phone audio.** → Calibrate on real calls first (task group 6), before the attribution UI is built. Name matching works without voice. The Maybe status and manual decisions absorb errors, and thresholds can be retuned with a rematch.
-- **Speaker separation can merge the two speakers on short calls, or split one speaker in two.** → Fingerprints need at least 3 seconds of speech. Matching looks at every speaker label, and attribution doesn't depend on getting exactly two speakers.
-- **Names can be misheard or not said at all.** → Hotwords, fuzzy matching and voice evidence, with manual claims as the backstop.
+- **Speaker separation can merge the two speakers on short calls, or split one speaker in two.** → Fingerprints need at least 3 seconds of speech, and every speaker label keeps its own fingerprint, so later matching doesn't depend on getting exactly two speakers.
 - **Ravon page changes would break parsing.** → The parser fails loudly with a status banner instead of returning zero rows. Its tests use structure copied from the real page.
 - **Two processes write to SQLite.** → WAL mode, a busy timeout, short transactions, and the worker doing almost all writes.
 - **Docker Desktop on Windows has to start at boot and keep WSL2 running.** → The README covers enabling "Start Docker Desktop when you sign in" and auto-login on a dedicated PC. A Linux host is the recommended setup.
-- **Voiceprints are biometric data.** → They are stored only in the instance's volume, never returned by the API, and deleted with the profile. The README tells operators to get each person's consent before enrolling them.
-- **Anyone on the shop network can read all calls and use every call action, including adding a speaker to a voice profile.** → The user chose this. A wrong enrollment can be removed by the admin on the People screen, and removing it triggers a rematch. Attribution is kept as data, so per-person access can be added later without migrating anything.
+- **Voice fingerprints of every speaker, customers included, are stored.** → They are needed to match staff voices later without re-downloading audio. They stay in the instance's volume, are never returned by the API, and can't be turned back into audio. Consent and enrollment rules come with `add-call-attribution`.
 - **The admin password crosses the shop network unencrypted, because the app is served over plain HTTP.** → Accepted for a trusted shop network. Sessions are short (12 hours), failed logins are slowed down, and the app can later be put behind HTTPS (for example, the same tunnel as the MCP change) without code changes.
 - **The setup code is printed in the server log.** → Only someone who can read the container logs can create the admin. The code is single-use and stops working once the admin exists.
 - **Model downloads are slow on the shop network.** → Models are baked in at build time, so a slow network only affects building the image, and the image can be built anywhere.
@@ -245,7 +221,7 @@ This is a new system, so there's no data to migrate.
 1. Build or pull the image.
 2. Copy `compose.yaml` and `.env.example` to the host, and fill in `.env`.
 3. Run `docker compose up -d`.
-4. Choose the store queues in the web app, then create profiles.
+4. Open the web app, follow the footer Admin link, create the admin with the setup code from `docker compose logs web`, and choose the store queues.
 
 **Rollback:**
 1. Run `docker compose down`.
@@ -255,4 +231,4 @@ This is a new system, so there's no data to migrate.
 ## Open Questions
 
 - **Where are images built and published?** Options are a local build on the shop PC, GitHub Container Registry, or another registry. This doesn't affect the specs or tasks: the image and compose file are the same either way.
-- **Is `small.en` accurate enough for names and part numbers across many calls,** or should the build default become `medium.en`? This is a build-argument change after real use.
+- **Is `small.en` accurate enough for part numbers and vehicle details across many calls,** or should the build default become `medium.en`? This is a build-argument change after real use.

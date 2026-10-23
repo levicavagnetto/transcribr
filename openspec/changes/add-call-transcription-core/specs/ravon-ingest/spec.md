@@ -82,7 +82,7 @@ On start, the system SHALL list the calls that occurred while it was off, from s
 
 #### Scenario: Restart after a weekend off
 - **WHEN** the server starts after being off for two days
-- **THEN** the calls from those two days appear in the call list as Not transcribed
+- **THEN** the calls from those two days are listed as Not transcribed
 
 #### Scenario: Load earlier calls
 - **WHEN** a user asks to load earlier calls

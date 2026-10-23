@@ -69,19 +69,12 @@ For each speaker in a transcribed call, processing SHALL store a voice fingerpri
 - **THEN** each speaker label has a stored fingerprint and speech duration, and no audio of the call is stored
 
 #### Scenario: API never exposes fingerprints
-- **WHEN** any API endpoint returns a call, speaker or profile
+- **WHEN** any API endpoint returns a call or its speakers
 - **THEN** the response contains no voice fingerprint data
-
-### Requirement: Recognize profile names reliably
-Transcription SHALL be biased toward recognizing the names configured in people profiles, so names are transcribed consistently.
-
-#### Scenario: Configured name in a greeting
-- **WHEN** a staff member whose profile lists the name "Nolan" answers "Tire Pros, this is Nolan"
-- **THEN** the transcript spells the name as configured
 
 ### Requirement: Background processing without starving the server
 Processing SHALL handle one call at a time, at lower CPU priority than the web API, so the web app stays responsive while transcription runs.
 
 #### Scenario: Browsing during a backlog
-- **WHEN** 50 calls are Waiting and a user opens the call list
-- **THEN** the call list loads within 2 seconds
+- **WHEN** 50 calls are Waiting and a user opens the web app
+- **THEN** pages and API reads respond within 2 seconds
