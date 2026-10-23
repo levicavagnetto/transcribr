@@ -1,6 +1,6 @@
 # Transcribr v2 architecture (draft)
 
-Status: draft from brainstorming, 2026-10-22. Not yet approved. The OpenSpec change's `design.md` will take this over once it is.
+Status: approved 2026-10-22. Implemented through three OpenSpec changes in order: `add-call-transcription-core`, `add-call-browser`, `add-call-attribution` (then `add-mcp-server`). Each change's `design.md` holds its decisions; keep this overview in sync with them.
 
 ## Block diagram
 

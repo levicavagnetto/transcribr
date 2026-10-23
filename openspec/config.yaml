@@ -36,9 +36,12 @@ context: |
     TypeScript + MUI UI) as two compose services sharing one named volume: `web`
     (FastAPI serves UI + API) and `worker` (poller + pipeline). Must run on
     Linux, Windows (Docker Desktop/WSL2) and macOS, amd64 and arm64. CPU only, no GPU.
-  - Phase 1: Ravon -> transcribe -> attribute -> UI with "Copy for ChatGPT".
-    Phase 2: read-only MCP server reachable by ChatGPT (Plus/Pro developer mode) through
-    a secure tunnel with OAuth.
+  - Build order (one OpenSpec change each, archived before the next starts):
+    add-call-transcription-core (Ravon -> transcribe, settings, admin, shell, Docker),
+    add-call-browser (call list, detail, Listen, Copy for ChatGPT),
+    add-call-attribution (people, name/voice matching, People screen),
+    add-mcp-server (read-only MCP for ChatGPT via secure tunnel + OAuth).
+    Later changes add requirements to earlier capabilities; they don't rewrite them.
 
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.
