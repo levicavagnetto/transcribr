@@ -13,6 +13,7 @@ from transcribr.ravon.client import RavonClient, RavonError
 from transcribr.ravon.parse import PageFormatChanged
 from transcribr.settings import POLL_INTERVAL_MINUTES, Settings
 from transcribr.store.state import (
+    GUARD_VIOLATIONS,
     QUEUE_LIST,
     QUEUE_REFRESH_REQUESTED,
     RAVON_REJECTED_FINGERPRINT,
@@ -70,6 +71,7 @@ class Worker:
         self._next_heartbeat = 0.0
         self._last_poll: float | None = None
         self._last_queue_attempt: float | None = None
+        self._violations_recorded = 0
 
     @classmethod
     def from_state(
@@ -115,9 +117,16 @@ class Worker:
             self._last_poll = now
             result = self._poller.poll() if self._caught_up else self._poller.catch_up()
             self._caught_up = self._caught_up or result.ok
-        if self._process_one is None:
-            return False
-        return self._process_one(self._conn)
+        did_job = self._process_one(self._conn) if self._process_one is not None else False
+        self._record_violations()
+        return did_job
+
+    def _record_violations(self) -> None:
+        """Add refused Ravon requests to the stored count the status report shows."""
+        new = self._client.guard.violations - self._violations_recorded
+        if new > 0:
+            self._violations_recorded += new
+            self._state.set(GUARD_VIOLATIONS, int(self._state.get(GUARD_VIOLATIONS, 0)) + new)
 
     def _poll_due(self, now: float) -> bool:
         if self._last_poll is None:

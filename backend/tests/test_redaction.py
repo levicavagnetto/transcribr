@@ -22,12 +22,9 @@ def capture() -> Iterator[tuple[logging.Logger, io.StringIO]]:
     logger.removeHandler(handler)
 
 
-def test_registered_secrets_and_cookies_never_reach_the_log(
-    capture: tuple[logging.Logger, io.StringIO],
-) -> None:
-    logger, stream = capture
+def log_records_carrying_secrets(logger: logging.Logger) -> None:
+    """Log credentials and cookies in every shape they could reach a log line in."""
     register_secret(PASSWORD)
-
     logger.info("login form: username=admin@example.com&password=%s", PASSWORD)
     logger.info("request headers: {'Cookie': 'JSESSIONID=ABC123DEF; session=xyz789'}")
     logger.info("response: Set-Cookie: JSESSIONID=QQQ999; Path=/; HttpOnly")
@@ -37,11 +34,20 @@ def test_registered_secrets_and_cookies_never_reach_the_log(
     except RuntimeError:
         logger.exception("login crashed")
 
-    out = stream.getvalue()
+
+def assert_no_secrets(out: str) -> None:
     for secret in (PASSWORD, "ABC123DEF", "xyz789", "QQQ999"):
         assert secret not in out
     assert "[redacted]" in out
     assert "username=admin@example.com" in out  # usernames are fine to log
+
+
+def test_registered_secrets_and_cookies_never_reach_the_log(
+    capture: tuple[logging.Logger, io.StringIO],
+) -> None:
+    logger, stream = capture
+    log_records_carrying_secrets(logger)
+    assert_no_secrets(stream.getvalue())
 
 
 def test_redact_handles_form_and_query_style_passwords() -> None:

@@ -208,3 +208,18 @@ def test_a_changed_page_does_not_stop_the_worker(rig: Rig) -> None:
     rig.fake.queue_select_missing = True
     rig.run_minutes(5)  # would raise if an exception escaped the loop
     assert State(rig.conn).get(RAVON_STATE) == "page_format_changed"
+
+
+def test_refused_ravon_requests_are_stored_for_the_status(rig: Rig) -> None:
+    from transcribr.ravon.guard import ReadOnlyViolation
+    from transcribr.store.state import GUARD_VIOLATIONS
+
+    rig.run_minutes(1)
+    assert State(rig.conn).get(GUARD_VIOLATIONS) is None
+    for _ in range(2):
+        with pytest.raises(ReadOnlyViolation):
+            rig.worker.client.http.post("/admin/delete.php", data={"id": "1"})
+    rig.run_minutes(1)
+    assert State(rig.conn).get(GUARD_VIOLATIONS) == 2
+    rig.run_minutes(5)
+    assert State(rig.conn).get(GUARD_VIOLATIONS) == 2  # counted once

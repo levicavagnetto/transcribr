@@ -2,12 +2,15 @@
 
 import logging
 import signal
+import sqlite3
 import threading
 import time
 from datetime import datetime
+from pathlib import Path
 from types import FrameType
 
 from transcribr.config import Config
+from transcribr.ingest.uptime import HEARTBEAT_INTERVAL, Uptime
 from transcribr.pipeline.process import JobRunner, ModelPipeline
 from transcribr.priority import lower_priority
 from transcribr.ravon.client import RavonClient
@@ -36,6 +39,27 @@ class StoppableClock:
 
     def sleep(self, seconds: float) -> None:
         self._stop.wait(seconds)
+
+
+def start_heartbeat(
+    db_path: Path, stop: threading.Event, *, interval: float = HEARTBEAT_INTERVAL.total_seconds()
+) -> threading.Thread:
+    """Beat from a thread of its own, so a long transcription doesn't look like a stopped worker."""
+
+    def beat() -> None:
+        conn = connect(db_path)
+        try:
+            while not stop.wait(interval):
+                try:
+                    Uptime(conn).heartbeat(utcnow())
+                except sqlite3.Error as error:
+                    log.warning("heartbeat failed: %s", error)
+        finally:
+            conn.close()
+
+    thread = threading.Thread(target=beat, name="heartbeat", daemon=True)
+    thread.start()
+    return thread
 
 
 def run_worker(config: Config, *, process_one: JobProcessor | None = None) -> int:
@@ -82,6 +106,8 @@ def _run(config: Config, stop: threading.Event, process_one: JobProcessor | None
         runner = JobRunner(conn, worker.client, ModelPipeline(config.models_dir))
         runner.recover()
         worker.set_processor(runner.process_one)
+    heartbeat = start_heartbeat(config.database_path, stop)
     worker.run()
+    heartbeat.join()
     log.info("worker stopped")
     return 0

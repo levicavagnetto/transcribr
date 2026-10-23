@@ -5,7 +5,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-from transcribr.store.db import connect
+from transcribr.store.db import connect, copy_database
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 _NAME = re.compile(r"^(\d{4})_[a-z0-9_]+\.sql$")
@@ -37,11 +37,7 @@ def _backup(conn: sqlite3.Connection, backup_dir: Path, version: int) -> Path:
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     target = backup_dir / f"pre-migration-v{version}-{stamp}.db"
-    copy = sqlite3.connect(target)
-    try:
-        conn.backup(copy)
-    finally:
-        copy.close()
+    copy_database(conn, target)
     return target
 
 

@@ -60,9 +60,9 @@
 
 ## 8. Status and operations
 
-- [ ] 8.1 Implement the status report (worker heartbeat age, last successful poll, Ravon state, queue length, failures in the last 24 hours, allow-list violations), and verify tests for the healthy, worker-stopped, login-failed, no-credentials and unreachable states
-- [ ] 8.2 Implement `transcribr worker-health` and `transcribr backup` (the SQLite backup API into `/data/backups`), and verify that the backup restores into a fresh data folder with identical counts
-- [ ] 8.3 Implement structured logging to stdout and a rotating file under `/data/logs`, and verify that the redaction test from 2.4 also passes through both outputs
+- [x] 8.1 Implement the status report (worker heartbeat age, last successful poll, Ravon state, queue length, failures in the last 24 hours, allow-list violations), and verify tests for the healthy, worker-stopped, login-failed, no-credentials and unreachable states
+- [x] 8.2 Implement `transcribr worker-health` and `transcribr backup` (the SQLite backup API into `/data/backups`), and verify that the backup restores into a fresh data folder with identical counts
+- [x] 8.3 Implement structured logging to stdout and a rotating file under `/data/logs`, and verify that the redaction test from 2.4 also passes through both outputs
 
 ## 9. Packaging and deployment
 

@@ -23,6 +23,15 @@ def connect(path: Path) -> sqlite3.Connection:
     return conn
 
 
+def copy_database(conn: sqlite3.Connection, target: Path) -> None:
+    """Write a consistent copy of the open database to `target` (the SQLite backup API)."""
+    copy = sqlite3.connect(target)
+    try:
+        conn.backup(copy)
+    finally:
+        copy.close()
+
+
 @contextmanager
 def transaction(conn: sqlite3.Connection) -> Generator[sqlite3.Connection]:
     """Run a block as one write transaction, taking the write lock up front."""
