@@ -23,8 +23,14 @@ class PasswordChange(BaseModel):
     new: str
 
 
-def _field(setting: Setting[Any]) -> dict[str, str]:
-    return {"key": setting.key, "label": setting.label}
+def _field(setting: Setting[Any]) -> dict[str, Any]:
+    """A setting's label and message, plus its limits so the UI can check them as you type."""
+    field: dict[str, Any] = {"key": setting.key, "label": setting.label, "message": setting.message}
+    schema = setting.adapter.json_schema()
+    for limit in ("minimum", "maximum"):
+        if limit in schema:
+            field[limit] = schema[limit]
+    return field
 
 
 @router.get("/settings")

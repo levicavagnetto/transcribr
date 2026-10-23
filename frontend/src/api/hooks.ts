@@ -41,9 +41,17 @@ export interface SettingsValues {
   [key: string]: unknown;
 }
 
+export interface SettingField {
+  key: string;
+  label: string;
+  message: string;
+  minimum?: number;
+  maximum?: number;
+}
+
 export interface SettingsResponse {
   values: SettingsValues;
-  fields: { key: string; label: string }[];
+  fields: SettingField[];
 }
 
 export interface QueueList {

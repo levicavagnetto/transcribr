@@ -26,9 +26,15 @@ def test_settings_show_values_and_labels(admin: Api) -> None:
     assert body["values"]["poll_interval_minutes"] == 2
     assert body["values"]["time_zone"] == "America/Chicago"
     assert body["values"]["store_queues"] == []
-    assert {"key": "poll_interval_minutes", "label": "Check for new calls every (minutes)"} in body[
-        "fields"
-    ]
+    fields = {f["key"]: f for f in body["fields"]}
+    assert fields["poll_interval_minutes"] == {
+        "key": "poll_interval_minutes",
+        "label": "Check for new calls every (minutes)",
+        "message": "The poll interval must be a whole number of minutes between 1 and 30.",
+        "minimum": 1,
+        "maximum": 30,
+    }
+    assert "minimum" not in fields["time_zone"]
 
 
 def test_settings_change_and_are_returned(admin: Api) -> None:

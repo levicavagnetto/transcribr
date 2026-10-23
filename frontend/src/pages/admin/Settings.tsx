@@ -17,6 +17,7 @@ import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "re
 
 import { ApiError } from "../../api/client";
 import {
+  type SettingField,
   type SettingsValues,
   useChangePassword,
   useQueues,
@@ -108,13 +109,33 @@ function StoreQueues({ selected, onChange }: { selected: string[]; onChange: (qu
   );
 }
 
+function outOfBounds(field: SettingField | undefined, value: number): boolean {
+  if (!field) return false;
+  return (field.minimum !== undefined && value < field.minimum) || (field.maximum !== undefined && value > field.maximum);
+}
+
 // Digits only, without leading zeros: a type="number" input keeps "02" on screen because React
-// leaves it alone while its number matches. Empty shows as empty and saves as 0, which the server rejects.
-function MinutesField({ value, onChange, error }: { value: number; onChange: (minutes: number) => void; error?: string }) {
+// leaves it alone while its number matches. Empty shows as empty and saves as 0, which is out of bounds.
+// The limits come from the server's field list and are checked on leaving the field; the server checks again on save.
+function MinutesField({
+  field,
+  value,
+  onChange,
+  error,
+}: {
+  field: SettingField | undefined;
+  value: number;
+  onChange: (minutes: number) => void;
+  error?: string;
+}) {
   const [text, setText] = useState(String(value));
+  const [checked, setChecked] = useState(false);
   useEffect(() => {
     setText((current) => (Number(current) === value ? current : String(value)));
   }, [value]);
+  const localError = checked && outOfBounds(field, value) ? field?.message : undefined;
+  const shown = localError ?? error;
+  const hint = field?.minimum !== undefined && field.maximum !== undefined ? `${field.minimum} to ${field.maximum}` : " ";
   return (
     <TextField
       label="Check every (minutes)"
@@ -124,8 +145,9 @@ function MinutesField({ value, onChange, error }: { value: number; onChange: (mi
         setText(digits);
         onChange(digits === "" ? 0 : Number(digits));
       }}
-      error={Boolean(error)}
-      helperText={error ?? "1 to 30"}
+      onBlur={() => setChecked(true)}
+      error={Boolean(shown)}
+      helperText={shown ?? hint}
       slotProps={{ htmlInput: { inputMode: "numeric" } }}
     />
   );
@@ -240,6 +262,7 @@ export function Settings() {
         <Section title="Checking for new calls">
           <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, maxWidth: 640 }}>
             <MinutesField
+              field={settings.data?.fields.find((f) => f.key === "poll_interval_minutes")}
               value={draft.poll_interval_minutes}
               onChange={(minutes) => set("poll_interval_minutes", minutes)}
               error={fieldError("poll_interval_minutes")}

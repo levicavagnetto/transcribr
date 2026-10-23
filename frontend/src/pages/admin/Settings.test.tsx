@@ -54,21 +54,36 @@ describe("the settings page", () => {
     expect(interval).toHaveValue("20");
   });
 
-  it("shows a rejected value next to its field", async () => {
-    const api = serve();
-    api.on("PUT /admin/settings", () => ({
-      status: 422,
-      body: {
-        error: { code: "invalid_setting", message: "Must be between 1 and 30.", key: "poll_interval_minutes" },
-      },
-    }));
+  it("checks the minutes against the limits on leaving the field", async () => {
+    serve();
     renderApp("/admin/settings");
     const interval = await screen.findByLabelText("Check every (minutes)");
     await userEvent.clear(interval);
-    await userEvent.type(interval, "99");
-    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
-    expect(await screen.findByText("Must be between 1 and 30.")).toBeInTheDocument();
+    await userEvent.type(interval, "45");
+    expect(screen.queryByText(/between 1 and 30/)).not.toBeInTheDocument();
+    await userEvent.tab();
+    expect(screen.getByText(/between 1 and 30/)).toBeInTheDocument();
     expect(interval).toHaveAttribute("aria-invalid", "true");
+
+    await userEvent.clear(interval);
+    expect(screen.getByText(/between 1 and 30/)).toBeInTheDocument();
+    await userEvent.type(interval, "15");
+    expect(screen.queryByText(/between 1 and 30/)).not.toBeInTheDocument();
+    expect(interval).toHaveAttribute("aria-invalid", "false");
+  });
+
+  it("shows a value the server rejected next to its field", async () => {
+    const api = serve();
+    api.on("PUT /admin/settings", () => ({
+      status: 422,
+      body: { error: { code: "invalid_setting", message: "Unknown time zone.", key: "time_zone" } },
+    }));
+    renderApp("/admin/settings");
+    const zone = await screen.findByLabelText("Store time zone");
+    await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
+    expect(await screen.findByText("Unknown time zone.")).toBeInTheDocument();
+    expect(zone).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Check every (minutes)")).toHaveAttribute("aria-invalid", "false");
     expect(screen.queryByText("Settings saved.")).not.toBeInTheDocument();
   });
 

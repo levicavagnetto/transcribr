@@ -71,9 +71,15 @@ export function settings(overrides: Partial<SettingsResponse["values"]> = {}): S
   return {
     values: { store_queues: [], poll_interval_minutes: 2, time_zone: "America/Chicago", ...overrides },
     fields: [
-      { key: "store_queues", label: "Store queues" },
-      { key: "poll_interval_minutes", label: "Check for new calls every (minutes)" },
-      { key: "time_zone", label: "Store time zone" },
+      { key: "store_queues", label: "Store queues", message: "Invalid value." },
+      {
+        key: "poll_interval_minutes",
+        label: "Check for new calls every (minutes)",
+        message: "The poll interval must be a whole number of minutes between 1 and 30.",
+        minimum: 1,
+        maximum: 30,
+      },
+      { key: "time_zone", label: "Store time zone", message: "Unknown time zone." },
     ],
   };
 }
