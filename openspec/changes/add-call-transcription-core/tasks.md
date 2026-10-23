@@ -22,7 +22,7 @@
 - [x] 3.4 Implement the parsers for the queue `<select>` and the `DataTable({ data: [...] })` results (recording ID from the checkbox value), with a loud failure when the page format changes; verify with synthetic pages copying the real structure, including an empty result and a changed format
 - [x] 3.5 Implement the audio download into memory with a `Content-Length` check; verify that a truncated response fails, and that a test scanning the temp and data folders after downloads finds no audio files
 - [x] 3.6 Build `tests/fake_ravon/` (login, search page, search submit, recordings, controllable faults) and verify that the client test suite runs entirely against it with no network access
-- [ ] 3.7 Write a `realsite`-marked smoke command (`transcribr ravon-check`) that logs in, lists the queues and counts one day's calls without downloading audio, and verify it with the user against the real site (the user runs it; record the queue count and call count in the change notes)
+- [x] 3.7 Write a `realsite`-marked smoke command (`transcribr ravon-check`) that logs in, lists the queues and counts one day's calls without downloading audio, and verify it with the user against the real site (the user runs it; record the queue count and call count in the change notes)
 
 ## 4. Ingest: poller, uptime and catch-up
 

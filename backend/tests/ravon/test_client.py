@@ -103,6 +103,12 @@ def test_five_failures_start_an_increasing_backoff(fake: FakeRavon) -> None:
     assert client.backoff_seconds == 0
 
 
+def test_ravon_gets_a_minute_to_answer_but_ten_seconds_to_connect(fake: FakeRavon) -> None:
+    timeout = make_client(fake).http.timeout
+    assert timeout.connect == 10.0
+    assert timeout.read == 60.0
+
+
 def test_timeouts_count_as_failures(fake: FakeRavon) -> None:
     client = make_client(fake)
     fake.timeouts = 1

@@ -31,7 +31,9 @@ MIN_REQUEST_INTERVAL = 1.0
 FAILURES_BEFORE_BACKOFF = 5
 FIRST_BACKOFF_SECONDS = 30.0
 MAX_BACKOFF_SECONDS = 600.0
-REQUEST_TIMEOUT = 20.0
+# A search normally answers in 1-2 s, but a busy Ravon has taken over 20 s; a real outage
+# still trips the backoff after FAILURES_BEFORE_BACKOFF slow attempts.
+REQUEST_TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 HTTP_OK = 200
 HTTP_SERVER_ERROR = 500
 

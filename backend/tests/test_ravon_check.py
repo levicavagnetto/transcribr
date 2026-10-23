@@ -64,6 +64,35 @@ def test_rejected_login_is_explained() -> None:
     assert "rejected the username or password" in text
 
 
+def test_one_failing_queue_does_not_hide_the_others() -> None:
+    fake = fake_with_calls()
+    real_handle = fake.handle
+    searches = 0
+
+    def slow_first_search(request: httpx.Request) -> httpx.Response:
+        nonlocal searches
+        if request.method == "POST" and request.url.path.endswith("manage_recorded_calls.html"):
+            searches += 1
+            if searches == 1:
+                raise httpx.ReadTimeout("slow", request=request)
+        return real_handle(request)
+
+    out = io.StringIO()
+    code = ravon_check(
+        load_config(ENV),
+        day=DAY,
+        queues=None,
+        out=out,
+        transport=httpx.MockTransport(slow_first_search),
+        clock=FakeClock(),
+    )
+    text = out.getvalue()
+    assert code == 1
+    assert "tireProz-salescustserv  Stillwater Sales/CS (x600)  FAILED: Ravon timed out" in text
+    assert "tireProz-HDsales  Hudson Sales/CS (x700)  1 calls" in text
+    assert "1 of 3 queues failed" in text
+
+
 def test_missing_credentials_are_explained() -> None:
     code, text = run(fake_with_calls(), {})
     assert code == 1

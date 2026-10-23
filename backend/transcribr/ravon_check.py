@@ -42,14 +42,21 @@ def ravon_check(  # noqa: PLR0913 - test seams for transport and clock
         start = datetime.combine(day, time(0, 0))
         end = start + timedelta(days=1) - timedelta(seconds=1)
         total = 0
+        failed = 0
         for queue in chosen:
-            count = len(client.search(queue, start, end))
+            label = labels.get(queue, "(not in the queue list)")
+            try:
+                count = len(client.search(queue, start, end))
+            except RavonError as error:
+                failed += 1
+                print(f"  {queue}  {label}  FAILED: {error}", file=out)
+                continue
             total += count
-            print(
-                f"  {queue}  {labels.get(queue, '(not in the queue list)')}  {count} calls",
-                file=out,
-            )
+            print(f"  {queue}  {label}  {count} calls", file=out)
         print(f"Total: {total} calls on {day.isoformat()} (store local time).", file=out)
+        if failed:
+            print(f"{failed} of {len(chosen)} queues failed; run the check again.", file=out)
+            return 1
         return 0
     except RavonError as error:
         print(f"Ravon check failed: {error}", file=out)
