@@ -25,6 +25,7 @@ class Config:
     port: int
     data_dir: Path
     models_dir: Path
+    ui_dir: Path
 
     @property
     def has_ravon_credentials(self) -> bool:
@@ -68,4 +69,5 @@ def load_config(env: Mapping[str, str] | None = None) -> Config:
         port=_port(source.get("TRANSCRIBR_PORT", "8000")),
         data_dir=Path(source.get("TRANSCRIBR_DATA_DIR", "/data")),
         models_dir=Path(source.get("TRANSCRIBR_MODELS_DIR", "/models")),
+        ui_dir=Path(source.get("TRANSCRIBR_UI_DIR", "/app/ui")),
     )

@@ -42,13 +42,13 @@
 
 ## 6. API and admin access
 
-- [ ] 6.1 Implement the FastAPI app skeleton (`/api/v1`, error format, `/api/v1/health`, serving the built UI files with an SPA fallback); verify the health endpoint and static serving in tests
-- [ ] 6.2 Implement the open endpoints: status (including today's listed, transcribed, Waiting and Failed counts for the home page), request transcription of a call, and load earlier calls; verify tests for each, including the duplicate-request case
-- [ ] 6.3 Implement admin access (design D12): the setup code on start while no admin exists, `/api/v1/admin/setup`, login, logout, password change, Argon2id hashing, hashed server-side sessions with 12-hour expiry, the `SameSite=Strict` cookie, the required `X-Transcribr-Admin` header on admin writes, and per-IP backoff; verify tests for every `admin-access` scenario
-- [ ] 6.4 Implement the admin settings endpoints under `/api/v1/admin/` (read and change settings, the queue list from Ravon, retry login); verify tests for the `instance-settings` scenarios, including "Password never exposed"
-- [ ] 6.5 Add `transcribr reset-admin`, and verify a test that it removes the admin and sessions and prints a new working setup code
-- [ ] 6.6 Add a test that walks the generated route list and asserts every `/api/v1/admin/` route rejects requests without a valid admin session, while every open route works without one
-- [ ] 6.7 Add a test that calls every GET endpoint and asserts the database is unchanged and no Ravon request was made, plus a test that the generated OpenAPI document covers every route
+- [x] 6.1 Implement the FastAPI app skeleton (`/api/v1`, error format, `/api/v1/health`, serving the built UI files with an SPA fallback); verify the health endpoint and static serving in tests
+- [x] 6.2 Implement the open endpoints: status (including today's listed, transcribed, Waiting and Failed counts for the home page), request transcription of a call, and load earlier calls; verify tests for each, including the duplicate-request case
+- [x] 6.3 Implement admin access (design D12): the setup code on start while no admin exists, `/api/v1/auth/state`, `/api/v1/auth/setup`, login and logout, password change under `/api/v1/admin/`, Argon2id hashing, hashed server-side sessions with 12-hour expiry, the `SameSite=Strict` cookie, the required `X-Transcribr: 1` header on every API write, and per-IP backoff; verify tests for every `admin-access` scenario
+- [x] 6.4 Implement the admin settings endpoints under `/api/v1/admin/` (read and change settings, the queue list from the worker's cache plus a refresh request, retry login), and have the worker refresh the cached queue list at start, every 6 hours and on request; verify tests for the `instance-settings` scenarios, including "Password never exposed"
+- [x] 6.5 Add `transcribr reset-admin`, and verify a test that it removes the admin and sessions and prints a new working setup code
+- [x] 6.6 Add a test that walks the generated route list and asserts every `/api/v1/admin/` route rejects requests without a valid admin session, while every open route works without one
+- [x] 6.7 Add a test that calls every GET endpoint and asserts the database is unchanged and no Ravon request was made, plus a test that the generated OpenAPI document covers every route
 
 ## 7. Web app shell and admin screens
 

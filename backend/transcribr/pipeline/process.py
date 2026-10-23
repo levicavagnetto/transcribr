@@ -162,8 +162,8 @@ class JobRunner:
         with transaction(self._conn):
             self._conn.execute("DELETE FROM jobs WHERE id = ?", (claimed.job_id,))
             self._conn.execute(
-                "UPDATE calls SET state = 'failed', failure_reason = ? WHERE id = ?",
-                (reason, claimed.call_id),
+                "UPDATE calls SET state = 'failed', failure_reason = ?, failed_at = ? WHERE id = ?",
+                (reason, to_iso(self._now()), claimed.call_id),
             )
 
     def _store(self, claimed: _Claimed, result: PipelineResult) -> None:

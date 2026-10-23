@@ -31,7 +31,7 @@ Mockups (People, and attribution on the Calls and Call screens): see `docs/archi
 
 ## Decisions
 
-### D1. Data model (migration 0002)
+### D1. Data model (the next migration)
 - **`profiles`:** ID, display name, created time.
 - **`name_variants`:** profile, variant, with a unique (profile, normalized variant).
 - **`voice_samples`:** profile, call, speaker label, added time, unique per (profile, call, speaker). It references the core change's `speakers` row, so it reuses that stored fingerprint and needs no copy.
@@ -123,7 +123,7 @@ Implemented exactly as the `call-attribution` "Automatic attribution rules" requ
 
 ## Migration Plan
 
-- Migration 0002 adds the four tables. The core change's migration runner takes a pre-migration backup.
+- The next migration adds the four tables. The core change's migration runner takes a pre-migration backup.
 - After deployment there are no profiles, so every call is Unassigned until the admin adds people.
 - **Rollback:** start the previous image and restore the pre-migration backup, which loses only the profiles and attributions created since.
 

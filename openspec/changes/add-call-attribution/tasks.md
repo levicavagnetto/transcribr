@@ -8,7 +8,7 @@
 
 ## 2. Data model and profiles
 
-- [ ] 2.1 Write migration 0002 (profiles, name variants, voice samples, attributions; design D1, with the cascade rules), and verify a migration test from a database created by the core change's migration 0001, including the pre-migration backup
+- [ ] 2.1 Write the next migration (profiles, name variants, voice samples, attributions; design D1, with the cascade rules), and verify a migration test from a database created by the core change's migrations, including the pre-migration backup
 - [ ] 2.2 Implement profiles and name variants (create, edit, delete with cascades), and verify tests for the "People profiles" scenarios
 - [ ] 2.3 Implement voice samples and centroids (add or remove a call's speaker, centroid rebuild, the 3-call / 60-second usability rule), and verify tests for the "Voice enrollment from existing calls" scenarios
 - [ ] 2.4 Add the voice threshold settings with the calibrated defaults and the low-below-high rule, and verify tests for the defaults and rejected values

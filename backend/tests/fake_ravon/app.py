@@ -53,7 +53,8 @@ class FakeRavon:
     reject_logins: bool = False
     server_errors: int = 0  # the next N requests get a 500
     timeouts: int = 0  # the next N requests time out
-    page_format_changed: bool = False
+    page_format_changed: bool = False  # the call table script is gone
+    queue_select_missing: bool = False  # the queue dropdown is gone
     truncate_audio: bool = False
 
     # Observations
@@ -177,7 +178,7 @@ class FakeRavon:
         )
         body = f"""<html><body>
 <form method="post" action="{SEARCH_PATH}">
-<select name="queue">{options}</select>
+{"" if self.queue_select_missing else f'<select name="queue">{options}</select>'}
 <select name="user"><option value="">All Users</option></select>
 <select name="conferencePK"><option value="">All</option></select>
 <input name="startDate"/><input name="endDate"/><input name="ani"/><input name="dnis"/>

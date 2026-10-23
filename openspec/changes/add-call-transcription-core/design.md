@@ -135,7 +135,8 @@ A `jobs` table holds one row per pending job. A job has a type; this change has 
   - `RAVON_USERNAME` and `RAVON_PASSWORD`
   - optionally `RAVON_BASE_URL`, defaulting to `https://admin.ravon.net`
   - `TRANSCRIBR_PORT`
-- **Database settings table:** everything else (queues, poll interval, time zone, and the settings later changes add), edited in the admin Settings screen and validated with Pydantic.
+- **Database settings table:** everything else (queues, poll interval, time zone, and the settings later changes add), edited in the admin Settings screen
+- **The Ravon queue list is cached by the worker,** in `service_state`. It's refreshed at start, every 6 hours, and when the admin asks (a POST sets a flag the worker picks up). The admin API reads the cache, so the Settings screen's GET never contacts Ravon, as the `web-app` REST rule requires, and the web service needs no Ravon session for it and validated with Pydantic.
 - The worker rereads settings every loop, so changes apply without a restart.
 - **Why:** this keeps the password out of the database, the API and backups. Only the admin can change settings, and nobody, not even the admin, can read the Ravon password through the app.
 - **Login-failure lockout safety:** after a rejected login, the worker stops trying.
@@ -159,14 +160,14 @@ A `jobs` table holds one row per pending job. A job has a type; this change has 
 ### D12. Admin access
 - **Routes:**
   - The UI puts admin screens under `/admin/...`: `/admin/settings`, `/admin/login` and `/admin/setup`. `add-call-attribution` adds `/admin/people`.
-  - The API puts every admin endpoint under `/api/v1/admin/...`.
+  - The API puts every admin endpoint under `/api/v1/admin/...`, all behind the session check. The endpoints used before logging in sit under `/api/v1/auth/`: `state` (setup required, login required, or logged in), `setup`, `login` and `logout`.
   - A FastAPI dependency on that router enforces the admin session for every route. Hiding links in the UI is only for convenience.
 - **First visit:**
   - While no admin row exists, `web` generates a 10-character setup code on start and writes it to the log in a clearly marked line. Only its hash is stored.
   - `/admin/setup` takes the code, then a username and password. Creation happens in one transaction that also deletes the code, so it can't be reused.
 - **Storage:** one `admin` row (username, Argon2id hash via `argon2-cffi`, password-changed time) and a `sessions` table (random 256-bit ID stored hashed, created and expiry times).
 - **The session cookie:** `HttpOnly`, `SameSite=Strict`, path `/`, 12-hour absolute expiry. `Secure` is set automatically when the request came over HTTPS.
-- **Cross-site protection:** `SameSite=Strict`, plus every admin write must carry an `X-Transcribr-Admin: 1` header, which another site's form or image can't send. Writes without it are rejected.
+- **Cross-site protection:** `SameSite=Strict`, plus every API write (any non-GET request, admin or open) must carry an `X-Transcribr: 1` header. Another site's form or image can't send that header, and the app allows no cross-origin requests, so other websites can't trigger actions such as Transcribe or a settings change. Writes without the header are rejected.
 - **Rate limiting:** an in-memory per-IP counter in `web`, with exponential backoff after 5 failures a minute, covers login and setup-code attempts. Failures are logged with the IP and username only. A restart clearing the counter is acceptable.
 - **Password change and reset:**
   - Changing the password needs the current password, and ends every other session.

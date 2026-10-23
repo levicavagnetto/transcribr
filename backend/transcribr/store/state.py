@@ -17,6 +17,10 @@ GUARD_VIOLATIONS = "guard_violations"
 RETRY_LOGIN_REQUESTED = (
     "ravon_retry_login_requested"  # set by the web service, cleared by the worker
 )
+QUEUE_LIST = (
+    "ravon_queue_list"  # {"fetched_at": ..., "queues": [{"value", "label"}]}, kept by the worker
+)
+QUEUE_REFRESH_REQUESTED = "ravon_queue_refresh_requested"  # set by the web service
 LISTED_FROM = "listed_from"  # the earliest time already listed; "load earlier" goes before it
 
 

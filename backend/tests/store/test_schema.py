@@ -43,7 +43,9 @@ def names(conn: sqlite3.Connection, kind: str) -> set[str]:
 
 
 def test_empty_database_gets_every_table_and_index(conn: sqlite3.Connection) -> None:
-    assert schema_version(conn) == 1
+    assert schema_version(conn) == 2
+    columns = {r[1] for r in conn.execute("PRAGMA table_info(calls)")}
+    assert "failed_at" in columns
     assert names(conn, "table") >= EXPECTED_TABLES
     assert names(conn, "index") >= EXPECTED_INDEXES
 

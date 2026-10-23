@@ -169,3 +169,42 @@ def test_worker_command_refuses_an_unprepared_database(tmp_path: Path) -> None:
     finally:
         module.SCHEMA_WAIT_SECONDS = original
     assert code == 1
+
+
+def test_the_queue_list_is_cached_at_start_even_before_queues_are_chosen(rig: Rig) -> None:
+    from transcribr.store.state import QUEUE_LIST
+
+    Settings(rig.conn).set(STORE_QUEUES, [])
+    rig.run_minutes(1)
+    cached = State(rig.conn).get(QUEUE_LIST)
+    assert [q["value"] for q in cached["queues"]] == list(rig.fake.queues)
+    assert cached["queues"][0]["label"] == "Stillwater Sales/CS (x600)"
+
+
+def test_the_queue_list_refreshes_on_request_and_when_stale(rig: Rig) -> None:
+    from transcribr.store.state import QUEUE_LIST, QUEUE_REFRESH_REQUESTED
+
+    def page_loads() -> int:
+        return sum(1 for r in rig.fake.requests if r.method == "GET" and "recorded" in r.url.path)
+
+    rig.run_minutes(1)
+    assert page_loads() == 1
+    rig.run_minutes(30)
+    assert page_loads() == 1  # cached
+
+    State(rig.conn).set(QUEUE_REFRESH_REQUESTED, True)
+    rig.run_minutes(1)
+    assert page_loads() == 2
+    assert State(rig.conn).get(QUEUE_REFRESH_REQUESTED) is None
+
+    rig.fake.queues["tireProz-new"] = "New Queue (x900)"
+    rig.run_minutes(6 * 60)
+    assert page_loads() == 3
+    assert "tireProz-new" in [q["value"] for q in State(rig.conn).get(QUEUE_LIST)["queues"]]
+
+
+def test_a_changed_page_does_not_stop_the_worker(rig: Rig) -> None:
+    rig.fake.page_format_changed = True
+    rig.fake.queue_select_missing = True
+    rig.run_minutes(5)  # would raise if an exception escaped the loop
+    assert State(rig.conn).get(RAVON_STATE) == "page_format_changed"
