@@ -3,15 +3,12 @@ import { ThemeProvider } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 
+import { COLOR_SCHEME_STORAGE_KEY, MODE_STORAGE_KEY } from "./colorScheme";
 import { theme } from "./theme";
 
-// Our own keys: MUI's default `mui-mode` is shared by every app on the same origin
-// (every Vite project on localhost:5173), and a stale value there overrides the system setting.
-export const MODE_STORAGE_KEY = "transcribr-mode";
-export const COLOR_SCHEME_STORAGE_KEY = "transcribr-color-scheme";
-
-export function Providers({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+// Tests pass their own client (no retries) so error states show at once.
+export function Providers({ children, client }: { children: ReactNode; client?: QueryClient }) {
+  const [queryClient] = useState(() => client ?? new QueryClient());
   return (
     <ThemeProvider
       theme={theme}

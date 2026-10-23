@@ -1,17 +1,24 @@
-import { ThemeProvider } from "@mui/material/styles";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 
-import { App } from "./App";
+import { auth, installFakeApi, status } from "./test/fakeApi";
+import { renderApp } from "./test/renderApp";
 import { theme, ubuntu } from "./theme";
 
 describe("App", () => {
   it("renders the app bar with the product name", () => {
-    render(
-      <ThemeProvider theme={theme}>
-        <App />
-      </ThemeProvider>,
-    );
-    expect(screen.getByText("Transcribr")).toBeInTheDocument();
+    const api = installFakeApi();
+    api.on("GET /status", status());
+    api.on("GET /auth/state", auth("login_required"));
+    renderApp("/");
+    expect(screen.getAllByText("Transcribr")[0]).toBeInTheDocument();
+  });
+
+  it("sends unknown pages home", async () => {
+    const api = installFakeApi();
+    api.on("GET /status", status());
+    api.on("GET /auth/state", auth("login_required"));
+    const app = renderApp("/no-such-page");
+    await vi.waitFor(() => expect(app.location()).toBe("/"));
   });
 });
 

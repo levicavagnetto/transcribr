@@ -1,19 +1,32 @@
-import AppBar from "@mui/material/AppBar";
-import Box from "@mui/material/Box";
-import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
+import { Navigate, Route, Routes } from "react-router";
 
-// Placeholder shell; the real navigation, banner and views arrive in task group 9.
+import { AdminGate } from "./pages/admin/AdminGate";
+import { Login } from "./pages/admin/Login";
+import { Settings } from "./pages/admin/Settings";
+import { Setup } from "./pages/admin/Setup";
+import { Home } from "./pages/Home";
+import { AppShell } from "./shell/AppShell";
+
 export function App() {
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h1" component="div" sx={{ fontSize: 24, fontWeight: 700 }}>
-            Transcribr
-          </Typography>
-        </Toolbar>
-      </AppBar>
-    </Box>
+    <AppShell>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route
+          path="/admin/*"
+          element={
+            <AdminGate>
+              <Routes>
+                <Route path="setup" element={<Setup />} />
+                <Route path="login" element={<Login />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/admin/settings" replace />} />
+              </Routes>
+            </AdminGate>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AppShell>
   );
 }

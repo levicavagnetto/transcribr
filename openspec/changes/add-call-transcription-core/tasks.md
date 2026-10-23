@@ -52,11 +52,11 @@
 
 ## 7. Web app shell and admin screens
 
-- [ ] 7.1 Build the app shell (app bar; admin links only for a logged-in admin; a footer with a small "Admin" link to `/admin`; the service status banner; the 10-second refetch), and verify Vitest tests that the banner renders for each status kind and that admin links are hidden without a session
-- [ ] 7.2 Complete the light and dark colour schemes (design D9, token tables in `docs/architecture.md`), add `InitColorSchemeScript` and the Light / Dark / System menu saved under Transcribr's own storage keys; verify a unit test that computes the contrast of every text/background token pair in both schemes and fails below 4.5:1, plus component tests that the menu choice persists across a remount and that another app's saved mode is ignored
-- [ ] 7.3 Build the home page with the collection status (last check, today's listed and transcribed counts, Waiting and Failed) and the first-setup notice when no queue is chosen; verify component tests for the working and not-set-up states
-- [ ] 7.4 Build the admin login, first-time setup (setup code, then username and password with the 12-character rule), log out, and change password screens; route any `/admin` page to login or setup when there is no session; verify component tests for each flow, including a wrong setup code and a short password
-- [ ] 7.5 Build the Settings view at `/admin/settings` (the queue picker read from Ravon, poll interval, time zone, validation messages, the Ravon login panel with Retry login, the admin account section), structured so later changes can add sections; verify component tests including rejected values
+- [x] 7.1 Build the app shell (app bar; admin links only for a logged-in admin; a footer with a small "Admin" link to `/admin`; the service status banner; the 10-second refetch), and verify Vitest tests that the banner renders for each status kind and that admin links are hidden without a session
+- [x] 7.2 Complete the light and dark colour schemes (design D9, token tables in `docs/architecture.md`), add `InitColorSchemeScript` and the Light / Dark / System menu saved under Transcribr's own storage keys; verify a unit test that computes the contrast of every text/background token pair in both schemes and fails below 4.5:1, plus component tests that the menu choice persists across a remount and that another app's saved mode is ignored
+- [x] 7.3 Build the home page with the collection status (last check, today's listed and transcribed counts, Waiting and Failed) and the first-setup notice when no queue is chosen; verify component tests for the working and not-set-up states
+- [x] 7.4 Build the admin login, first-time setup (setup code, then username and password with the 12-character rule), log out, and change password screens; route any `/admin` page to login or setup when there is no session; verify component tests for each flow, including a wrong setup code and a short password
+- [x] 7.5 Build the Settings view at `/admin/settings` (the queue picker read from Ravon, poll interval, time zone, validation messages, the Ravon login panel with Retry login, the admin account section), structured so later changes can add sections; verify component tests including rejected values
 
 ## 8. Status and operations
 

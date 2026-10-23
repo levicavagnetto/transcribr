@@ -58,6 +58,8 @@ export const theme = createTheme({
       palette: {
         primary: { main: ubuntu.lightAubergine, dark: ubuntu.midAubergine, contrastText: ubuntu.white },
         secondary: { main: ubuntu.orange, light: ubuntu.orange60, contrastText: ubuntu.textGrey },
+        // MUI's white label on its warning orange is only 3.1:1.
+        warning: { main: "#ED6C02", contrastText: ubuntu.textGrey },
         background: { default: ubuntu.warmGrey15, paper: ubuntu.white },
         text: { primary: ubuntu.textGrey, secondary: ubuntu.darkAubergine70 },
         divider: ubuntu.warmGrey25,
@@ -76,6 +78,8 @@ export const theme = createTheme({
       palette: {
         primary: { main: ubuntu.lightAubergine40, contrastText: ubuntu.textGrey },
         secondary: { main: ubuntu.orange, light: ubuntu.orange60, contrastText: ubuntu.textGrey },
+        // MUI's white label on its dark-scheme error red is only 3.7:1.
+        error: { main: "#F44336", contrastText: ubuntu.textGrey },
         background: { default: ubuntu.textGrey, paper: ubuntu.coolGrey },
         text: { primary: ubuntu.white, secondary: ubuntu.warmGrey },
         divider: "rgba(174,167,159,0.24)",

@@ -7,6 +7,7 @@ import "@fontsource/barlow-semi-condensed/700.css";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
 
 import { App } from "./App";
 import { Providers } from "./Providers";
@@ -17,7 +18,9 @@ if (!root) throw new Error("Missing #root element");
 createRoot(root).render(
   <StrictMode>
     <Providers>
-      <App />
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </Providers>
   </StrictMode>,
 );
