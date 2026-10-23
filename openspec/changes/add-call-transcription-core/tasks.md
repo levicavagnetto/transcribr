@@ -9,10 +9,10 @@
 
 ## 2. Store, migrations and settings
 
-- [ ] 2.1 Implement the SQLite connection helper (WAL mode, busy timeout, foreign keys) and the migration runner (numbered SQL files, `user_version`, a pre-migration backup, one transaction per migration); verify with tests for a fresh database, an upgrade, and a failing migration that leaves the data unchanged
-- [ ] 2.2 Write the first migration (tables: calls, jobs with a type column, transcripts with segments and word timestamps, transcript FTS5 index, speakers with fingerprints, settings, uptime spans, service state, admin, admin sessions, admin setup code), and verify a schema test that creates an empty database and checks every table and index
-- [ ] 2.3 Implement typed settings with defaults and validation (store queues; poll interval 1–30 minutes, default 2; store time zone, default America/Chicago, validated against the tz database), designed so later changes can register more settings; verify tests for the defaults, rejecting out-of-range and unknown values, and a change taking effect without a restart
-- [ ] 2.4 Implement environment configuration (`RAVON_USERNAME`, `RAVON_PASSWORD`, `RAVON_BASE_URL`, `TRANSCRIBR_PORT`, `TRANSCRIBR_DATA_DIR`) plus log redaction, and verify a test that logs a record carrying credentials and cookies and finds none of them in the output
+- [x] 2.1 Implement the SQLite connection helper (WAL mode, busy timeout, foreign keys) and the migration runner (numbered SQL files, `user_version`, a pre-migration backup, one transaction per migration); verify with tests for a fresh database, an upgrade, and a failing migration that leaves the data unchanged
+- [x] 2.2 Write the first migration (tables: calls, jobs with a type column, transcripts with segments and word timestamps, transcript FTS5 index, speakers with fingerprints, settings, uptime spans, service state, admin, admin sessions, admin setup code), and verify a schema test that creates an empty database and checks every table and index
+- [x] 2.3 Implement typed settings with defaults and validation (store queues; poll interval 1–30 minutes, default 2; store time zone, default America/Chicago, validated against the tz database), designed so later changes can register more settings; verify tests for the defaults, rejecting out-of-range and unknown values, and a change taking effect without a restart
+- [x] 2.4 Implement environment configuration (`RAVON_USERNAME`, `RAVON_PASSWORD`, `RAVON_BASE_URL`, `TRANSCRIBR_PORT`, `TRANSCRIBR_DATA_DIR`) plus log redaction, and verify a test that logs a record carrying credentials and cookies and finds none of them in the output
 
 ## 3. Ravon client and fake Ravon
 

@@ -3,7 +3,10 @@ name = "transcribr"
 version = "0.1.0"
 description = "Collects a store's Ravon call recordings, transcribes them and matches calls to people."
 requires-python = ">=3.14,<3.15"
-dependencies = []
+dependencies = [
+    "pydantic>=2.9",
+    "tzdata>=2024.1",
+]
 
 [project.scripts]
 transcribr = "transcribr.cli:main"
@@ -13,6 +16,7 @@ dev = [
     "pytest>=8.3",
     "ruff>=0.8",
     "pyright>=1.1.390",
+    "hypothesis>=6.100",
 ]
 
 [build-system]

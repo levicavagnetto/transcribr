@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lets each instance be set up for its own store and people from the web app, keeps that configuration with the instance's data, and reports whether the instance is healthy.
+Lets each instance be set up for its own store from the admin area, keeps that configuration with the instance's data, and reports whether the instance is healthy.
 
 ## ADDED Requirements
 
