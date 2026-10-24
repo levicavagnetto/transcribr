@@ -137,26 +137,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     add.add_argument("--minutes", type=float, default=0.5)
     add.add_argument("--ended-seconds-ago", type=float, default=5)
     add.add_argument("--audio", choices=["two-voices", "silence"], default="two-voices")
+    add.add_argument("--count", type=int, default=1, help="add this many calls, IDs counting up")
     args = parser.parse_args(argv)
     if args.command is None:
         serve()
         return 0
-    payload = json.dumps(
-        {
-            "id": args.id,
-            "queue": args.queue,
-            "minutes": args.minutes,
-            "ended_seconds_ago": args.ended_seconds_ago,
-            "audio": args.audio,
-        }
-    ).encode()
-    request = urllib.request.Request(
-        f"http://{HOST}:{CONTROL_PORT}/calls",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310 - fixed local URL
-        print(response.read().decode())
+    for rid in range(args.id, args.id + args.count):
+        payload = json.dumps(
+            {
+                "id": rid,
+                "queue": args.queue,
+                "minutes": args.minutes,
+                "ended_seconds_ago": args.ended_seconds_ago,
+                "audio": args.audio,
+            }
+        ).encode()
+        request = urllib.request.Request(
+            f"http://{HOST}:{CONTROL_PORT}/calls",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:  # noqa: S310 - local URL
+            print(response.read().decode())
     return 0
 
 
