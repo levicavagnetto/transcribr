@@ -13,7 +13,8 @@ Both keep everything in one Docker volume: the database, backups and logs.
 
 ## What you need
 
-- A computer that stays on during shop hours. Linux, Windows 10/11 or macOS, Intel/AMD or ARM.
+- A computer that stays on during shop hours. Linux, Windows 10/11 or an Intel Mac, with a 64-bit Intel or AMD
+  processor.
   Allow 4 GB of free memory and 6 GB of disk.
 - Docker:
   - **Linux:** Docker Engine with the Compose plugin

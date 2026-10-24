@@ -149,7 +149,7 @@ A `jobs` table holds one row per pending job. A job has a type; this change has 
   2. A model stage downloads the `small.en` CTranslate2 files and the two sherpa-onnx models, at pinned revisions, and checks each file against a SHA-256.
   3. `python:3.14-slim` installs the backend with `uv sync --frozen` and copies in the UI files and models.
 - **Python version:** 3.14, the newest release with Linux wheels for every native dependency (ctranslate2, sherpa-onnx, onnxruntime, PyAV 18) on both amd64 and arm64, checked on PyPI on 2026-10-22. Python 3.15 (released 2026-10-09) has no ctranslate2, sherpa-onnx or onnxruntime wheels yet, so moving to it later is a version bump once they ship. v1 also ran faster-whisper on 3.14 on the dev PC.
-- **Multi-arch:** images are built for amd64 and arm64 with `docker buildx`.
+- **Platform:** amd64 only (the shop PCs are 64-bit Intel). Nothing in the Dockerfile is amd64-specific, and an arm64 build under emulation passed the non-model tests on 2026-10-23, but arm64 is untested with the models and not supported.
 - **Runtime:**
   - The container runs as a non-root user (uid 10001), and `/data` is the named volume.
   - Compose sets `restart: unless-stopped` and a health check for each service.

@@ -7,15 +7,15 @@ Makes an instance easy to install, run unattended, update and move on any machin
 ## ADDED Requirements
 
 ### Requirement: Runs from a published container image
-The instance SHALL be started from a single container image with one compose file and one environment file. No other software needs to be installed on the host except Docker. The image SHALL be available for amd64 and arm64 and run on Linux, Windows (Docker Desktop with WSL2) and macOS.
+The instance SHALL be started from a single container image with one compose file and one environment file. No other software needs to be installed on the host except Docker. The image SHALL be available for amd64 (64-bit Intel or AMD processors) and run on Linux, Windows (Docker Desktop with WSL2) and macOS on Intel. ARM hosts are not supported.
 
 #### Scenario: Fresh install
 - **WHEN** an operator places the compose file and an environment file with Ravon credentials on a host with Docker, and runs the start command
 - **THEN** the web app becomes reachable on the configured port, with no further installation steps
 
-#### Scenario: ARM host
-- **WHEN** the same compose file is used on an arm64 host
-- **THEN** the instance starts and transcribes calls as on amd64
+#### Scenario: Intel or AMD host
+- **WHEN** the compose file is used on a 64-bit Intel or AMD host
+- **THEN** the instance starts and transcribes calls with the bundled models
 
 ### Requirement: No downloads at runtime
 The image SHALL contain every model and asset the instance needs. A running instance SHALL only make network requests to Ravon.

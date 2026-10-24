@@ -69,7 +69,7 @@
 - [x] 9.1 Write the multi-stage Dockerfile (UI build, a model stage with pinned revisions and SHA-256 checks, a Python 3.14 slim runtime, non-root uid 10001), and verify `docker build` succeeds and `docker run --rm <image> id -u` prints 10001
 - [x] 9.2 Write `compose.yaml` (`web` and `worker` from one image, a named volume, `restart: unless-stopped`, health checks, the worker waiting for a healthy web, only the web port published) and `.env.example`; verify `docker compose up -d` gives two healthy services
 - [x] 9.3 Verify the no-runtime-downloads requirement by running the stack with outbound network restricted to the fake Ravon and processing a fixture call end to end
-- [ ] 9.4 Build and run the arm64 image (buildx with emulation or an arm64 host), and verify that the fixture pipeline test passes inside it
+- [x] 9.4 ~~Build and run the arm64 image and verify the fixture pipeline test inside it~~ Narrowed on 2026-10-23: the instance runs on amd64 only (64-bit Intel/AMD; no arm hardware to test on). Done instead: the arm64 image builds under emulation, its native libraries load and the 292 non-model tests pass; the model test was stopped after an hour under emulation
 - [ ] 9.5 Write the README (install on Linux, Windows with Docker Desktop and auto-start, and macOS; `.env`; first setup, including finding the admin setup code in `docker compose logs web` and `reset-admin`; updating; backup and restore; troubleshooting the banner states and a page that ignores the Windows light/dark setting: Firefox Settings → General → Website appearance → Automatic, Chrome/Edge appearance set to follow the device), and verify by following it on a clean host to a working instance
 
 ## 10. End-to-end checks

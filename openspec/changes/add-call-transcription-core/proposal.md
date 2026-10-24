@@ -14,7 +14,7 @@ Transcribr v2 fixes this in three changes. This first change builds the core tha
 - **Admin area at `/admin`:** settings sit behind a single admin login. The admin account is created on the first visit, using a one-time setup code printed in the server log.
 - **Instance settings in the admin area:** store queues, poll interval and time zone. Ravon credentials come from the deployment's environment file.
 - **Web app shell on the shop network:** open without a login. It has light and dark themes that follow the device, a status banner when something needs attention, a home page showing collection status, a footer link to the admin area, and a documented REST API where every read is side-effect free.
-- **Deploy as one Docker image:** run on any OS with Docker (Linux, Windows via WSL2, macOS; amd64 and arm64), with two services (`web` and `worker`) sharing one named volume. The running instance makes no network requests except to Ravon.
+- **Deploy as one Docker image:** run on any OS with Docker (Linux, Windows via WSL2, macOS; 64-bit Intel or AMD), with two services (`web` and `worker`) sharing one named volume. The running instance makes no network requests except to Ravon.
 - **Out of scope (follow-up changes):**
   - **`add-call-browser`:** call list, search, call detail, Listen and Copy for ChatGPT.
   - **`add-call-attribution`:** people profiles, name and voice matching, the People admin screen, person filters.

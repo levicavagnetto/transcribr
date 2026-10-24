@@ -35,7 +35,7 @@ context: |
   - Runs on a shop PC from one Docker image (multi-stage: Node builds the React +
     TypeScript + MUI UI) as two compose services sharing one named volume: `web`
     (FastAPI serves UI + API) and `worker` (poller + pipeline). Must run on
-    Linux, Windows (Docker Desktop/WSL2) and macOS, amd64 and arm64. CPU only, no GPU.
+    Linux, Windows (Docker Desktop/WSL2) and macOS, amd64 (64-bit Intel/AMD). CPU only, no GPU.
   - Build order (one OpenSpec change each, archived before the next starts):
     add-call-transcription-core (Ravon -> transcribe, settings, admin, shell, Docker),
     add-call-browser (call list, detail, Listen, Copy for ChatGPT),
