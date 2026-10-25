@@ -19,7 +19,7 @@ describe("the app shell", () => {
     serve("login_required");
     renderApp("/");
     expect(await screen.findByRole("link", { name: "Admin" })).toHaveAttribute("href", "/admin");
-    expect(await screen.findByText("2 waiting · 1 failed in 24 h")).toBeInTheDocument();
+    expect(await screen.findByText(/^2 waiting · 1 failed in 24 h · checked \d{1,2}:\d{2}/)).toBeInTheDocument();
   });
 
   it("hides the admin links without a session", async () => {

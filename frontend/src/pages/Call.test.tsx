@@ -49,7 +49,7 @@ describe("a transcribed call", () => {
     expect(details.getByText("Thu Oct 22 2026")).toBeInTheDocument();
     expect(details.getByText("(405) 555-0187")).toBeInTheDocument();
     expect(details.getByText("SW Counter Sales")).toBeInTheDocument();
-    expect(details.getByText("tireProz-salescustserv")).toBeInTheDocument();
+    expect(details.getByText("Stillwater Sales/CS (x600)")).toBeInTheDocument();
     expect(details.getByText(/^Automatically, /)).toBeInTheDocument();
     expect(details.getByText("Transcribed", { selector: ".MuiChip-label" })).toBeInTheDocument();
 
@@ -195,4 +195,10 @@ describe("live updates on the call page", () => {
     expect(await screen.findByText("I need tires for my 2019 Silverado.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy for ChatGPT" })).toBeInTheDocument();
   });
+});
+
+it("falls back to the queue's Ravon value until the worker has read the queue names", async () => {
+  serve({ queue_label: null });
+  renderApp(`/calls/${ID}`);
+  expect(await screen.findByText("tireProz-salescustserv")).toBeInTheDocument();
 });

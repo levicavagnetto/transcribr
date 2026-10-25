@@ -10,6 +10,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from transcribr.store.db import digits_only
+from transcribr.store.state import QUEUE_LIST, State
 from transcribr.timeutil import local_to_utc, to_iso
 
 STATES = ("not_transcribed", "waiting", "processing", "transcribed", "failed")
@@ -25,6 +26,7 @@ class BadCursor(ValueError):
 @dataclass(frozen=True)
 class CallFilter:
     state: str | None = None
+    since: datetime | None = None  # started at or after this moment (timezone-aware)
     start: date | None = None  # first day, in the store's time zone
     end: date | None = None  # last day, inclusive
     text: str | None = None  # words said in the call
@@ -100,6 +102,9 @@ def list_calls(
     if where.state is not None:
         conditions.append("c.state = ?")
         params.append(where.state)
+    if where.since is not None:
+        conditions.append("c.start_utc >= ?")
+        params.append(to_iso(where.since))
     if where.start is not None:
         conditions.append("c.start_utc >= ?")
         params.append(to_iso(local_to_utc(datetime.combine(where.start, time()), zone)))
@@ -172,8 +177,11 @@ def call_detail(conn: sqlite3.Connection, call_id: int) -> dict[str, Any] | None
     ).fetchone()
     if row is None:
         return None
+    cached: dict[str, Any] | None = State(conn).get(QUEUE_LIST)
+    labels = {q["value"]: q["label"] for q in cached["queues"]} if cached else {}
     return {
         **_call_row(row),
+        "queue_label": labels.get(row["queue"]),
         "auto_queued": bool(row["auto_queued"]),
         "failure_reason": row["failure_reason"],
         "transcribed_at": row["transcribed_at"],

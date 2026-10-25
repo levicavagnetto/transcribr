@@ -16,6 +16,7 @@ import type { ReactNode } from "react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router";
 
 import { useAuthState, useLogout, useStatus } from "../api/hooks";
+import { clockTime } from "../format";
 import { StatusBanner } from "./StatusBanner";
 import { ThemeMenu } from "./ThemeMenu";
 
@@ -25,7 +26,7 @@ function WorkerChip() {
   const { data } = useStatus();
   if (!data) return null;
   const label = data.worker_running
-    ? `${data.waiting} waiting · ${data.failed_last_24h} failed in 24 h`
+    ? `${data.waiting} waiting · ${data.failed_last_24h} failed in 24 h · checked ${clockTime(data.last_poll_ok)}`
     : "Worker stopped";
   return (
     <Chip

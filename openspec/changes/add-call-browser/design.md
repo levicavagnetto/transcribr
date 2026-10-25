@@ -26,7 +26,7 @@ Mockups: the design canvas at https://claude.ai/artifact/9WxKCnhBUmpG7UZKVH4MD1 
 ## Decisions
 
 ### D1. Endpoints
-- `GET /api/v1/calls` takes `state`, `from`, `to` (store time zone), `q` (text) and `number`, plus `cursor` and `limit` (default 50, max 200).
+- `GET /api/v1/calls` takes `state`, `since` (an ISO 8601 date-time with a time zone, for clients such as the MCP server), `from`, `to` (days in the store time zone), `q` (text) and `number`, plus `cursor` and `limit` (default 50, max 200).
   - It returns rows newest first.
   - The cursor is an opaque, base64-encoded `(start_time, id)` of the last row, so pages stay stable while new calls arrive.
 - `GET /api/v1/calls/{id}` returns the details and state.
@@ -39,7 +39,7 @@ Mockups: the design canvas at https://claude.ai/artifact/9WxKCnhBUmpG7UZKVH4MD1 
 - Fingerprints are excluded at the response-schema level: the Pydantic models have no field for them, so they can't leak by accident.
 
 ### D2. Search
-- **Text:** an FTS5 `MATCH` on the transcript index, with the user's words quoted as a phrase when they contain a space. FTS5 `snippet()` gives the matching passage with `<mark>` delimiters, which the UI renders as highlights without using raw HTML. The matched segment's start time comes from a join on the segment rowid.
+- **Text:** an FTS5 `MATCH` on the transcript index, with the user's words quoted as a phrase when they contain a space. FTS5 `snippet()` gives the matching passage with control-character markers around the matched words; the API returns it as `{text, hit}` parts, which the UI renders as highlights without any HTML. The matched segment's start time comes from a join on the segment rowid.
 - **Number:** digits only on both sides, compared as a suffix match, so "555-0142" finds "(405) 555-0142". The digits-only column is stored when the call is listed.
 - **Why FTS5:** it's built into SQLite, fast at this volume (thousands of calls), and needs no extra service. The alternative, `LIKE` scans, is slower and has no ranking or snippets.
 
@@ -71,8 +71,8 @@ Mockups: the design canvas at https://claude.ai/artifact/9WxKCnhBUmpG7UZKVH4MD1 
 - **Calls header:** the title, then "Last check hh:mm · every N min" with Check Ravon now at the right and a status line under the button ("Checking Ravon…", "1 new call found.", or why it can't check).
 - **Filter panel:** a search field (words or a phone number), the state as toggle buttons (Any, Transcribed, Waiting, Processing, Not transcribed, Failed), and From/To date fields. A "Clear search and filters" link appears when any is set.
 - **Table:** an MUI `Table` with infinite scroll from the cursor. Columns: Started (links to the call), Length, Caller, Answered by, State, and a notes column showing "New", "No speech", or "Ended while Transcribr was off" with a Transcribe button. A search hit adds a second line to its row: "at m:ss" and the passage with the matched words highlighted. The end of the list has "List the week before from Ravon" (the core change's load-earlier action).
-- **Status area:** the last-check and Waiting/Failed figures from the old home page move into a compact status chip in the app bar: "N waiting · N failed today".
-- **Call:** a header (start time and length, state chip) and a details grid (caller, answered by, queue, how and when transcribed); an actions row with Copy for ChatGPT, "Include the phone number", and "Show/Hide what gets copied" (open by default, showing the exact text); a Listen bar using the native `<audio>` element styled with theme tokens; then the transcript as rows of time, speaker with a colour dot, and text.
+- **Status area:** the last-check and Waiting/Failed figures from the old home page move into a compact status chip in the app bar: "N waiting · N failed in 24 h · checked hh:mm" (the failed count is the last 24 hours, and the check time keeps "last check" visible on every page).
+- **Call:** a header (start time and length, state chip) and a details grid (caller, answered by, queue by its Ravon name once the worker has read the queue list, how and when transcribed); an actions row with Copy for ChatGPT, "Include the phone number", and "Show/Hide what gets copied" (open by default, showing the exact text); a Listen bar using the native `<audio>` element styled with theme tokens; then the transcript as rows of time, speaker with a colour dot, and text.
 - **Other states:** Not transcribed, Failed, No speech, and Waiting/Processing follow the canvas's "other states" board.
 - **Data fetching:** TanStack Query keys per filter set, with a 10-second `refetchInterval` while the tab is visible.
 

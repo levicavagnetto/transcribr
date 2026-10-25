@@ -190,7 +190,7 @@ export function Call() {
                 </Box>
               </Detail>
               <Detail label="Answered by">{data.answered_by}</Detail>
-              <Detail label="Queue">{data.queue}</Detail>
+              <Detail label="Queue">{data.queue_label ?? data.queue}</Detail>
               <Detail label="Transcribed">{howTranscribed(data)}</Detail>
             </Box>
             <Box sx={{ borderTop: 1, borderColor: "divider", pt: 2 }}>

@@ -94,6 +94,7 @@ export interface CallList {
 }
 
 export interface CallDetail extends CallSummary {
+  queue_label: string | null;
   auto_queued: boolean;
   failure_reason: string | null;
   transcribed_at: string | null;

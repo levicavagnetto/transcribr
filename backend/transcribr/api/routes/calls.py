@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel
 
 from transcribr.api.deps import ApiError, Db, Now, Ravon
 from transcribr.ravon.client import LoginRejected, NoCredentials, RavonError
@@ -58,6 +58,7 @@ class CallList(BaseModel):
 
 
 class CallDetail(CallSummary):
+    queue_label: str | None  # Ravon's name for the queue, when the worker has read the list
     auto_queued: bool
     failure_reason: str | None
     transcribed_at: str | None
@@ -87,6 +88,10 @@ class Transcript(BaseModel):
 def list_calls(  # noqa: PLR0913, PLR0917 - one parameter per filter
     conn: Db,
     state: CallState | None = None,
+    since: Annotated[
+        AwareDatetime | None,
+        Query(description="Started at or after this moment, ISO 8601 with a time zone"),
+    ] = None,
     start: Annotated[date | None, Query(alias="from", description="First day, store time")] = None,
     end: Annotated[date | None, Query(alias="to", description="Last day, store time")] = None,
     q: Annotated[str | None, Query(description="Words said in the call")] = None,
@@ -95,7 +100,7 @@ def list_calls(  # noqa: PLR0913, PLR0917 - one parameter per filter
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> CallList:
     """Calls newest first, filtered and searched, one page at a time."""
-    where = browse.CallFilter(state=state, start=start, end=end, text=q, number=number)
+    where = browse.CallFilter(state=state, since=since, start=start, end=end, text=q, number=number)
     try:
         page = browse.list_calls(
             conn, where, zone=Settings(conn).get(TIME_ZONE), limit=limit, cursor=cursor

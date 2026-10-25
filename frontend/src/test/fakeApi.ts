@@ -149,6 +149,7 @@ export function callDetail(overrides: Partial<CallDetail> = {}): CallDetail {
   const { passage: _passage, ...summary } = call();
   return {
     ...summary,
+    queue_label: "Stillwater Sales/CS (x600)",
     auto_queued: true,
     failure_reason: null,
     transcribed_at: "2026-10-22T16:47:00Z",

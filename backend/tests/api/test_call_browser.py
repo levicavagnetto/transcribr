@@ -271,3 +271,36 @@ def test_no_response_contains_fingerprint_data(seeded: Api) -> None:
         assert "fingerprint" not in text.lower(), path
         assert "SECRET-FINGERPRINT" not in text, path
         json.loads(text)  # and every one is plain JSON
+
+
+@pytest.mark.parametrize("since", ["2026-10-24T13:15:00Z", "2026-10-24T08:15:00-05:00"])
+def test_lists_calls_since_a_moment(seeded: Api, since: str) -> None:
+    # 08:15 store time on Oct 24 is 13:15 UTC; a call starting exactly then is included.
+    assert ids(seeded.client.get("/api/v1/calls", params={"since": since})) == [
+        90000006,
+        90000005,
+        90000004,
+    ]
+
+
+def test_since_needs_a_time_zone(seeded: Api) -> None:
+    response = seeded.client.get("/api/v1/calls", params={"since": "2026-10-24T13:15:00"})
+    assert response.status_code == 422
+
+
+def test_call_detail_names_the_queue_once_the_worker_has_read_the_list(seeded: Api) -> None:
+    from transcribr.store.state import QUEUE_LIST, State
+
+    assert seeded.client.get("/api/v1/calls/90000002").json()["queue_label"] is None
+    State(seeded.db()).set(
+        QUEUE_LIST,
+        {
+            "fetched_at": "2026-10-24T15:00:00Z",
+            "queues": [{"value": "tireProz-salescustserv", "label": "Stillwater Sales/CS (x600)"}],
+        },
+    )
+    detail = seeded.client.get("/api/v1/calls/90000002").json()
+    assert (detail["queue"], detail["queue_label"]) == (
+        "tireProz-salescustserv",
+        "Stillwater Sales/CS (x600)",
+    )
