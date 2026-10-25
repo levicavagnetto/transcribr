@@ -2,14 +2,14 @@
 
 ## 1. Call API
 
-- [ ] 1.1 Store a digits-only copy of each caller number when calls are listed (a small migration plus a backfill of existing rows), and verify a migration test and a listing test
-- [ ] 1.2 Implement `GET /api/v1/calls` with state and date filters, cursor paging (design D1) and stable pages while new calls arrive; verify tests for each filter, combined filters, and paging across an insert
-- [ ] 1.3 Add text search (FTS5 phrase match, `snippet()` with highlights, the matched segment's time) and number search (digits-only suffix match); verify tests for every scenario under "Text and number search"
-- [ ] 1.4 Implement `GET /api/v1/calls/{id}` and `GET /api/v1/calls/{id}/transcript` with response models that have no fingerprint fields (the detail includes `auto_queued` and `transcribed_at`, for "how and when transcribed"); verify tests for each call state, including "no speech", and a test that no response contains fingerprint data
-- [ ] 1.5 Implement `GET /api/v1/calls/{id}/audio` streaming through `web`'s guarded client (design D3) with a 502 on Ravon errors; verify tests against the fake Ravon for success, Ravon down, and no audio left on disk
-- [ ] 1.6 Add the `research_prompt` setting (design D5) with its default and the 1–4,000 character rule, exposed through the admin settings endpoints; verify tests for the default, editing, and rejecting an empty prompt
-- [ ] 1.7 Extend the GET-purity and OpenAPI tests from the core change to cover the new routes, with the audio route as the one documented Ravon exception
-- [ ] 1.8 Implement `POST /api/v1/check-ravon` and the worker side (design D7); verify tests that a request causes a check within one worker loop, that two requests within 15 s cause one search, and that a request made during a job is handled right after it
+- [x] 1.1 Store a digits-only copy of each caller number when calls are listed (a small migration plus a backfill of existing rows), and verify a migration test and a listing test
+- [x] 1.2 Implement `GET /api/v1/calls` with state and date filters, cursor paging (design D1) and stable pages while new calls arrive; verify tests for each filter, combined filters, and paging across an insert
+- [x] 1.3 Add text search (FTS5 phrase match, `snippet()` with highlights, the matched segment's time) and number search (digits-only suffix match); verify tests for every scenario under "Text and number search"
+- [x] 1.4 Implement `GET /api/v1/calls/{id}` and `GET /api/v1/calls/{id}/transcript` with response models that have no fingerprint fields (the detail includes `auto_queued` and `transcribed_at`, for "how and when transcribed"); verify tests for each call state, including "no speech", and a test that no response contains fingerprint data
+- [x] 1.5 Implement `GET /api/v1/calls/{id}/audio` streaming through `web`'s guarded client (design D3) with a 502 on Ravon errors; verify tests against the fake Ravon for success, Ravon down, and no audio left on disk
+- [x] 1.6 Add the `research_prompt` setting (design D5) with its default and the 1–4,000 character rule, exposed through the admin settings endpoints; verify tests for the default, editing, and rejecting an empty prompt
+- [x] 1.7 Extend the GET-purity and OpenAPI tests from the core change to cover the new routes, with the audio route as the one documented Ravon exception
+- [x] 1.8 Implement `POST /api/v1/check-ravon` and the worker side (design D7); verify tests that a request causes a check within one worker loop, that two requests within 15 s cause one search, and that a request made during a job is handled right after it
 
 ## 2. Calls and Call screens
 

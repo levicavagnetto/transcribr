@@ -98,6 +98,38 @@ TIME_ZONE = register(
 )
 
 
+RESEARCH_PROMPT_MAX = 4000
+DEFAULT_RESEARCH_PROMPT = (
+    "Below is a phone call between our tire and auto shop and a customer. List what the"
+    " customer asked for, including their vehicle and any budget or constraints they"
+    " mentioned. Then research options that fit, with prices where you can find them, and"
+    " note anything we should ask the customer before quoting."
+)
+
+
+def _prompt_text(text: str) -> str:
+    if not text.strip():
+        raise ValueError("empty prompt")
+    return text
+
+
+RESEARCH_PROMPT = register(
+    Setting(
+        key="research_prompt",
+        adapter=TypeAdapter(
+            Annotated[
+                str,
+                Field(min_length=1, max_length=RESEARCH_PROMPT_MAX),
+                AfterValidator(_prompt_text),
+            ]
+        ),
+        default=DEFAULT_RESEARCH_PROMPT,
+        label="Research prompt",
+        message="The research prompt must be 1 to 4,000 characters, and not only spaces.",
+    )
+)
+
+
 class Settings:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn

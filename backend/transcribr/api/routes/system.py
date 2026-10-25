@@ -8,6 +8,7 @@ from transcribr.admin import Admins
 from transcribr.api.deps import AdminsDep, Db, Now, get_config
 from transcribr.config import Config
 from transcribr.status import build_status
+from transcribr.store.state import CHECK_REQUESTED, LAST_POLL_OK, State
 
 router = APIRouter(prefix="/api/v1", tags=["system"])
 
@@ -29,3 +30,16 @@ def status(
         admin_exists=Admins.exists(admins),
     )
     return report.as_dict()
+
+
+@router.post("/check-ravon")
+def check_ravon(conn: Db) -> dict[str, object]:
+    """Ask the worker to check Ravon for new calls now, instead of at its next scheduled poll.
+
+    The worker picks this up within about a second, or right after the call it is
+    transcribing; a press within 15 seconds of the last check causes no extra request.
+    `last_poll_ok` lets the caller tell when the check has happened.
+    """
+    state = State(conn)
+    state.set(CHECK_REQUESTED, True)
+    return {"requested": True, "last_poll_ok": state.get(LAST_POLL_OK)}

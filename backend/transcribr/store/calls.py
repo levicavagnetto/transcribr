@@ -5,7 +5,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from transcribr.ravon.parse import Recording
-from transcribr.store.db import transaction
+from transcribr.store.db import digits_only, transaction
 from transcribr.timeutil import local_to_utc, to_iso
 
 START_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -32,7 +32,8 @@ def add_listed(  # noqa: PLR0913 - keyword-only call details
     with transaction(conn):
         inserted = conn.execute(
             "INSERT INTO calls (id, queue, start_local, start_utc, minutes, caller_number,"
-            " answered_by, listed_at, state, auto_queued) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            " caller_digits, answered_by, listed_at, state, auto_queued)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             " ON CONFLICT (id) DO NOTHING",
             (
                 recording.id,
@@ -41,6 +42,7 @@ def add_listed(  # noqa: PLR0913 - keyword-only call details
                 to_iso(start_utc),
                 recording.minutes,
                 recording.caller,
+                digits_only(recording.caller),
                 recording.answered_by,
                 to_iso(now),
                 "waiting" if auto_queue else "not_transcribed",

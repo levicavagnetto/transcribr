@@ -27,9 +27,14 @@ def _field(setting: Setting[Any]) -> dict[str, Any]:
     """A setting's label and message, plus its limits so the UI can check them as you type."""
     field: dict[str, Any] = {"key": setting.key, "label": setting.label, "message": setting.message}
     schema = setting.adapter.json_schema()
-    for limit in ("minimum", "maximum"):
+    for limit, name in (
+        ("minimum", "minimum"),
+        ("maximum", "maximum"),
+        ("minLength", "min_length"),
+        ("maxLength", "max_length"),
+    ):
         if limit in schema:
-            field[limit] = schema[limit]
+            field[name] = schema[limit]
     return field
 
 

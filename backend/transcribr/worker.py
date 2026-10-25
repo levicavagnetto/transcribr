@@ -13,6 +13,7 @@ from transcribr.ravon.client import RavonClient, RavonError
 from transcribr.ravon.parse import PageFormatChanged
 from transcribr.settings import POLL_INTERVAL_MINUTES, Settings
 from transcribr.store.state import (
+    CHECK_REQUESTED,
     GUARD_VIOLATIONS,
     QUEUE_LIST,
     QUEUE_REFRESH_REQUESTED,
@@ -28,6 +29,7 @@ LOAD_EARLIER = "load_earlier"
 MAX_IDLE_SLEEP = 1.0
 QUEUE_LIST_MAX_AGE = timedelta(hours=6)
 QUEUE_LIST_RETRY_SECONDS = 60.0
+CHECK_NOW_COOLDOWN_SECONDS = 15.0  # presses this soon after a check don't cause another
 
 # Takes the database, does at most one unit of work, and says whether it did any.
 JobProcessor = Callable[[sqlite3.Connection], bool]
@@ -113,6 +115,7 @@ class Worker:
         self._handle_retry_login()
         self._handle_load_earlier()
         self._refresh_queue_list(now)
+        self._handle_check_request(now)
         if self._poll_due(now):
             self._last_poll = now
             result = self._poller.poll() if self._caught_up else self._poller.catch_up()
@@ -127,6 +130,15 @@ class Worker:
         if new > 0:
             self._violations_recorded += new
             self._state.set(GUARD_VIOLATIONS, int(self._state.get(GUARD_VIOLATIONS, 0)) + new)
+
+    def _handle_check_request(self, now: float) -> None:
+        """ "Check Ravon now": poll on this loop unless the last check was moments ago."""
+        if not self._state.get(CHECK_REQUESTED):
+            return
+        self._state.delete(CHECK_REQUESTED)
+        if self._last_poll is None or now - self._last_poll >= CHECK_NOW_COOLDOWN_SECONDS:
+            log.info("checking Ravon now, as a user asked")
+            self._last_poll = None  # due now; the schedule restarts from this poll
 
     def _poll_due(self, now: float) -> bool:
         if self._last_poll is None:

@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -14,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from transcribr.admin import Admins, FailureLimiter
 from transcribr.api.deps import WRITE_HEADER, ApiError
+from transcribr.api.listen import WebRavon
 from transcribr.api.routes import admin, auth, calls, system
 from transcribr.config import Config
 from transcribr.store.db import connect
@@ -41,7 +43,11 @@ def create_app(
     *,
     now: Callable[[], datetime] = utcnow,
     on_setup_code: Callable[[str], None] = _log_setup_code,
+    ravon_transport: httpx.BaseTransport | None = None,
 ) -> FastAPI:
+    """`ravon_transport` lets tests put the fake Ravon behind Listen."""
+    ravon = WebRavon(config, transport=ravon_transport, min_interval=0 if ravon_transport else 1)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         migrate(config.database_path)
@@ -53,6 +59,7 @@ def create_app(
         finally:
             conn.close()
         yield
+        ravon.close()
 
     app = FastAPI(
         title="Transcribr",
@@ -65,6 +72,7 @@ def create_app(
     app.state.config = config
     app.state.now = now
     app.state.limiter = FailureLimiter()
+    app.state.ravon = ravon
     app.state.log = log
 
     @app.middleware("http")

@@ -104,3 +104,14 @@ def test_load_earlier_asks_the_worker_once(api: Api) -> None:
         assert api.post("/api/v1/calls/load-earlier").json() == {"requested": True}
     jobs = api.db().execute("SELECT count(*) FROM jobs WHERE type = 'load_earlier'").fetchone()[0]
     assert jobs == 1
+
+
+def test_check_ravon_now_asks_the_worker(api: Api) -> None:
+    from transcribr.store.state import CHECK_REQUESTED
+
+    State(api.db()).set(LAST_POLL_OK, "2026-10-22T13:58:00Z")
+    response = api.post("/api/v1/check-ravon")
+    assert response.status_code == 200
+    assert response.json() == {"requested": True, "last_poll_ok": "2026-10-22T13:58:00Z"}
+    assert State(api.db()).get(CHECK_REQUESTED) is True
+    assert api.client.post("/api/v1/check-ravon").status_code == 403  # no X-Transcribr header

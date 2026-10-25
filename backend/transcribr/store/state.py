@@ -17,6 +17,9 @@ GUARD_VIOLATIONS = "guard_violations"
 RETRY_LOGIN_REQUESTED = (
     "ravon_retry_login_requested"  # set by the web service, cleared by the worker
 )
+CHECK_REQUESTED = (
+    "ravon_check_requested"  # "Check Ravon now": set by the web, cleared by the worker
+)
 QUEUE_LIST = (
     "ravon_queue_list"  # {"fetched_at": ..., "queues": [{"value", "label"}]}, kept by the worker
 )

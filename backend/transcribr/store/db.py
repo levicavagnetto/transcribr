@@ -8,6 +8,11 @@ from pathlib import Path
 BUSY_TIMEOUT_MS = 5000
 
 
+def digits_only(text: str | None) -> str:
+    """A phone number's digits, so "(405) 555-0142" and "405.555.0142" compare equal."""
+    return "".join(ch for ch in text or "" if ch in "0123456789")
+
+
 def connect(path: Path) -> sqlite3.Connection:
     """Open the database in WAL mode with foreign keys on.
 
@@ -20,6 +25,7 @@ def connect(path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.create_function("digits_only", 1, digits_only, deterministic=True)
     return conn
 
 

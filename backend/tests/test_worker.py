@@ -223,3 +223,51 @@ def test_refused_ravon_requests_are_stored_for_the_status(rig: Rig) -> None:
     assert State(rig.conn).get(GUARD_VIOLATIONS) == 2
     rig.run_minutes(5)
     assert State(rig.conn).get(GUARD_VIOLATIONS) == 2  # counted once
+
+
+# --- "Check Ravon now" ----------------------------------------------------------------------
+
+
+def test_a_check_request_polls_within_one_loop(rig: Rig) -> None:
+    from transcribr.store.state import CHECK_REQUESTED
+
+    rig.run_minutes(1)  # the start-up poll
+    before = rig.searches()
+    rig.clock.advance(20)
+    State(rig.conn).set(CHECK_REQUESTED, True)
+    rig.worker.run(until=rig.clock.now + 1)
+    assert rig.searches() == before + 1
+    assert State(rig.conn).get(CHECK_REQUESTED) is None
+
+
+def test_requests_within_fifteen_seconds_of_a_check_cause_one_search(rig: Rig) -> None:
+    from transcribr.store.state import CHECK_REQUESTED
+
+    rig.run_minutes(1)
+    rig.clock.advance(20)
+    before = rig.searches()
+    for _ in range(3):  # three people press it a few seconds apart
+        State(rig.conn).set(CHECK_REQUESTED, True)
+        rig.worker.run(until=rig.clock.now + 4)
+    assert rig.searches() == before + 1
+    assert State(rig.conn).get(CHECK_REQUESTED) is None
+
+
+def test_a_request_made_during_a_job_is_handled_right_after_it(rig: Rig) -> None:
+    from transcribr.store.state import CHECK_REQUESTED
+
+    jobs: list[int] = []
+
+    def slow_job(_conn: sqlite3.Connection) -> bool:
+        if jobs:
+            return False
+        jobs.append(1)
+        State(rig.conn).set(CHECK_REQUESTED, True)  # someone presses it mid-transcription
+        rig.clock.advance(40)  # the transcription takes 40 s
+        return True
+
+    rig.worker.set_processor(slow_job)
+    rig.worker.run(until=rig.clock.now + 1)  # start-up poll, then the job
+    before = rig.searches()
+    rig.worker.run(until=rig.clock.now + 1)  # the very next loop
+    assert rig.searches() == before + 1  # long before the 2-minute schedule

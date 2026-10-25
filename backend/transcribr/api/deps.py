@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from transcribr.admin import Admins, FailureLimiter
+from transcribr.api.listen import WebRavon
 from transcribr.config import Config
 from transcribr.store.db import connect
 
@@ -37,6 +38,14 @@ def get_now(request: Request) -> datetime:
 def get_limiter(request: Request) -> FailureLimiter:
     limiter: FailureLimiter = request.app.state.limiter
     return limiter
+
+
+def get_ravon(request: Request) -> WebRavon:
+    ravon: WebRavon = request.app.state.ravon
+    return ravon
+
+
+Ravon = Annotated[WebRavon, Depends(get_ravon)]
 
 
 def get_db(config: Annotated[Config, Depends(get_config)]) -> Iterator[sqlite3.Connection]:

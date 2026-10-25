@@ -3,6 +3,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+import httpx
 import httpx2
 import pytest
 from fastapi.testclient import TestClient
@@ -53,7 +54,12 @@ class Api:
         assert response.status_code == 200, response.text
 
 
-def make_api(tmp_path: Path, env: dict[str, str] | None = None) -> Iterator[Api]:
+def make_api(
+    tmp_path: Path,
+    env: dict[str, str] | None = None,
+    *,
+    ravon_transport: httpx.BaseTransport | None = None,
+) -> Iterator[Api]:
     ui = tmp_path / "ui"
     (ui / "assets").mkdir(parents=True)
     (ui / "index.html").write_text("<html><body>Transcribr UI</body></html>", encoding="utf-8")
@@ -64,7 +70,9 @@ def make_api(tmp_path: Path, env: dict[str, str] | None = None) -> Iterator[Api]
     )
     clock = FakeClock()
     codes: list[str] = []
-    app = create_app(config, now=clock.utcnow, on_setup_code=codes.append)
+    app = create_app(
+        config, now=clock.utcnow, on_setup_code=codes.append, ravon_transport=ravon_transport
+    )
     with TestClient(app) as client:
         yield Api(client, clock, data, codes)
 

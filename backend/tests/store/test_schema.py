@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from transcribr.store.db import connect, transaction
-from transcribr.store.migrate import migrate, schema_version
+from transcribr.store.migrate import MIGRATIONS_DIR, migrate, schema_version
 
 EXPECTED_TABLES = {
     "calls",
@@ -43,7 +43,7 @@ def names(conn: sqlite3.Connection, kind: str) -> set[str]:
 
 
 def test_empty_database_gets_every_table_and_index(conn: sqlite3.Connection) -> None:
-    assert schema_version(conn) == 2
+    assert schema_version(conn) == len(list(MIGRATIONS_DIR.glob("*.sql")))
     columns = {r[1] for r in conn.execute("PRAGMA table_info(calls)")}
     assert "failed_at" in columns
     assert names(conn, "table") >= EXPECTED_TABLES

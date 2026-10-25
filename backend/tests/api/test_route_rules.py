@@ -3,6 +3,7 @@
 import re
 import sqlite3
 from collections.abc import Iterable, Iterator
+from pathlib import Path
 
 import httpx
 import httpx2
@@ -10,7 +11,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
-from tests.api.conftest import WRITE, Api
+from tests.api.conftest import WRITE, Api, make_api
+from tests.fake_ravon.app import FakeCall, FakeRavon
+
+# GET endpoints documented as reaching Ravon (spec web-app, "Reads have no side effects").
+RAVON_GETS = {"/api/v1/calls/{call_id}/audio"}
 
 
 def _walk(routes: Iterable[object]) -> Iterator[APIRoute]:
@@ -90,10 +95,32 @@ def test_every_get_changes_nothing_and_never_calls_out(
     )
     before = snapshot(conn)
     gets = [p for m, p in api_routes(admin) if m == "GET"]
-    assert gets
+    assert set(gets) >= RAVON_GETS  # the exception list names real routes
     for path in gets:
-        admin.client.get(concrete(path))
+        if path not in RAVON_GETS:
+            admin.client.get(concrete(path))
     assert snapshot(admin.db()) == before
+
+
+def test_the_gets_that_reach_ravon_say_so_and_change_nothing(tmp_path: Path) -> None:
+    fake = FakeRavon(calls=[FakeCall(26541125, "q", "2026-10-22 08:00:00", 2.0)])
+    env = {"RAVON_USERNAME": fake.username, "RAVON_PASSWORD": fake.password}
+    for api in make_api(tmp_path, env, ravon_transport=httpx.MockTransport(fake.handle)):
+        document = api.client.get("/api/v1/openapi.json").json()
+        for path in RAVON_GETS:
+            assert "sends a request to Ravon" in document["paths"][path]["get"]["description"]
+        conn = api.db()
+        conn.execute(
+            "INSERT INTO calls (id, queue, start_local, start_utc, minutes, caller_number,"
+            " answered_by, listed_at, state) VALUES (26541125, 'q', '2026-10-22 08:00:00',"
+            " '2026-10-22T13:00:00Z', 2, 'x', 'y', 't', 'transcribed')"
+        )
+        before = snapshot(conn)
+        for path in RAVON_GETS:
+            assert api.client.get(concrete(path)).status_code == 200
+        assert snapshot(api.db()) == before
+        assert {r.method for r in fake.requests} <= {"GET", "POST"}
+        assert all(r.url.path in ("/auth/login", "/recordings/26541125") for r in fake.requests)
 
 
 def test_the_openapi_document_covers_every_route(api: Api) -> None:

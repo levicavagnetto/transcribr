@@ -42,8 +42,9 @@ Mockups: the design canvas at https://claude.ai/artifact/9WxKCnhBUmpG7UZKVH4MD1 
 - **Why FTS5:** it's built into SQLite, fast at this volume (thousands of calls), and needs no extra service. The alternative, `LIKE` scans, is slower and has no ranking or snippets.
 
 ### D3. Listen
-- The `web` service streams the MP3 from Ravon to the browser chunk by chunk, using `web`'s own guarded client, with no disk buffer.
-- `Content-Type` is `audio/mpeg`. `Content-Length` is passed through when Ravon sends it, so the browser's player can show the duration.
+- The `web` service fetches the MP3 with its own guarded client (`transcribr/api/listen.py`) into memory, using the core client's `download()` with its length check, and sends it to the browser. Nothing touches the disk. This reuses the core client's login, re-login, pacing and allow list as they are; a recording is a few MB, so holding one in memory is fine. (Changed during the build on 2026-10-25 from streaming chunk by chunk, which would have needed a second request path through the client.)
+- The web client respects a login the worker found rejected, and tries again once the worker's retry clears it.
+- `Content-Type` is `audio/mpeg` with the full `Content-Length`, so the browser's player can show the duration; `Cache-Control: no-store`.
 - Range requests aren't supported in this change. The player plays from the start, and calls are short (2.5 minutes on average).
 - Errors map to a 502 with a plain message, which the UI shows.
 - **Alternative:** a redirect to Ravon. The browser has no Ravon session, so it gets a 401.

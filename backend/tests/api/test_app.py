@@ -1,5 +1,5 @@
 from tests.api.conftest import Api
-from transcribr.store.migrate import schema_version
+from transcribr.store.migrate import MIGRATIONS_DIR, schema_version
 
 
 def test_health(api: Api) -> None:
@@ -9,7 +9,7 @@ def test_health(api: Api) -> None:
 
 
 def test_the_app_migrates_the_database_on_start(api: Api) -> None:
-    assert schema_version(api.db()) == 2
+    assert schema_version(api.db()) == len(list(MIGRATIONS_DIR.glob("*.sql")))
 
 
 def test_the_ui_is_served_with_a_fallback_for_its_own_routes(api: Api) -> None:
