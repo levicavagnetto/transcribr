@@ -9,7 +9,7 @@ See `proposal.md` for the motivation and `specs/` for the required behavior. Thi
 - the MUI theme and app shell, including the status banner, the footer Admin link and the 10-second refetch
 - the admin Settings screen, built to take more sections
 
-Mockups (Calls and Call detail): see `docs/architecture.md`.
+Mockups: the design canvas at https://claude.ai/artifact/9WxKCnhBUmpG7UZKVH4MD1 (Calls, Call detail, other call states, the research prompt setting, and Calls in the dark theme), reviewed by the user on 2026-10-25. D6 records its layout.
 
 ## Goals / Non-Goals
 
@@ -64,9 +64,12 @@ Mockups (Calls and Call detail): see `docs/architecture.md`.
 
 ### D6. UI structure
 - **Views:** `/` (Calls) and `/calls/:id` (Call), both under the core change's app shell.
-- **Calls:** a filter panel (status, dates) and a search field over an MUI `Table`, with infinite scroll from the cursor.
-- **Call:** a header with chips and actions, plus a transcript list. Listen uses the native `<audio>` element styled with theme tokens.
-- **Status area:** the last-check and Waiting/Failed figures from the old home page move into a compact status chip in the app bar.
+- **Calls header:** the title, then "Last check hh:mm · every N min" with Check Ravon now at the right and a status line under the button ("Checking Ravon…", "1 new call found.", or why it can't check).
+- **Filter panel:** a search field (words or a phone number), the state as toggle buttons (Any, Transcribed, Waiting, Processing, Not transcribed, Failed), and From/To date fields. A "Clear search and filters" link appears when any is set.
+- **Table:** an MUI `Table` with infinite scroll from the cursor. Columns: Started (links to the call), Length, Caller, Answered by, State, and a notes column showing "New", "No speech", or "Ended while Transcribr was off" with a Transcribe button. A search hit adds a second line to its row: "at m:ss" and the passage with the matched words highlighted. The end of the list has "List the week before from Ravon" (the core change's load-earlier action).
+- **Status area:** the last-check and Waiting/Failed figures from the old home page move into a compact status chip in the app bar: "N waiting · N failed today".
+- **Call:** a header (start time and length, state chip) and a details grid (caller, answered by, queue, how and when transcribed); an actions row with Copy for ChatGPT, "Include the phone number", and "Show/Hide what gets copied" (open by default, showing the exact text); a Listen bar using the native `<audio>` element styled with theme tokens; then the transcript as rows of time, speaker with a colour dot, and text.
+- **Other states:** Not transcribed, Failed, No speech, and Waiting/Processing follow the canvas's "other states" board.
 - **Data fetching:** TanStack Query keys per filter set, with a 10-second `refetchInterval` while the tab is visible.
 
 ### D7. Check Ravon now

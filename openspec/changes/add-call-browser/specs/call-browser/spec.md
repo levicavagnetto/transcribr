@@ -21,6 +21,10 @@ The web app's home page SHALL be the call list, newest first, open to everyone o
 - **WHEN** more calls exist than fit on one page
 - **THEN** older calls load as the user scrolls or pages, without re-sending earlier rows
 
+#### Scenario: Reach the oldest listed call
+- **WHEN** a user scrolls to the end of the listed calls
+- **THEN** the list offers to list the week before from Ravon
+
 ### Requirement: Filter by state and date
 The call list SHALL filter by processing state (any, Transcribed, Waiting, Processing, Not transcribed, Failed) and by date range. Filters SHALL combine with each other and with search.
 
@@ -44,7 +48,7 @@ Users SHALL be able to search transcripts by words and calls by caller number. N
 - **THEN** calls from that number are shown, transcribed or not
 
 ### Requirement: Call detail
-Opening a call SHALL show its start time, length, caller number, answered-by text, queue and processing state, plus the transcript as timestamped lines labeled by speaker. It SHALL show the actions that fit the call's state.
+Opening a call SHALL show its start time, length, caller number, answered-by text, queue and processing state, how and when it was transcribed (automatically or on request), plus the transcript as timestamped lines labeled by speaker. It SHALL show the actions that fit the call's state.
 
 #### Scenario: Transcribed call
 - **WHEN** a user opens a Transcribed call
@@ -63,7 +67,7 @@ Opening a call SHALL show its start time, length, caller number, answered-by tex
 - **THEN** the page says the recording had no recognizable speech
 
 ### Requirement: Copy for ChatGPT
-For a transcribed call, a single click SHALL copy the instance's research prompt, then the call's date, time and length, then the speaker-labeled transcript, ready to paste into ChatGPT. The caller's phone number SHALL be left out unless the user includes it for that copy. Copying SHALL work when the app is served over plain HTTP on the shop network.
+For a transcribed call, a single click SHALL copy the instance's research prompt, then the call's date, time and length, then the speaker-labeled transcript, ready to paste into ChatGPT. The caller's phone number SHALL be left out unless the user includes it for that copy. Copying SHALL work when the app is served over plain HTTP on the shop network. Before copying, the user SHALL be able to see exactly the text that will be copied, and the preview SHALL follow the phone-number choice.
 
 #### Scenario: Copy a call
 - **WHEN** a user clicks Copy for ChatGPT on a transcribed call
@@ -72,6 +76,10 @@ For a transcribed call, a single click SHALL copy the instance's research prompt
 #### Scenario: Include the number
 - **WHEN** the user turns on "include phone number" before copying
 - **THEN** the copied text also contains the caller number
+
+#### Scenario: Preview the copied text
+- **WHEN** a user opens a transcribed call
+- **THEN** they can show the exact text Copy for ChatGPT will copy, with or without the phone number as chosen
 
 #### Scenario: Browser blocks the clipboard
 - **WHEN** the browser refuses programmatic clipboard access
@@ -100,7 +108,7 @@ The call list and the open call SHALL reflect new calls and state changes within
 - **THEN** its transcript appears within 30 seconds
 
 ### Requirement: Check Ravon now
-The call list SHALL offer a "Check Ravon now" button, open to everyone, that makes the worker check Ravon for new calls right away instead of at the next scheduled check. Presses within 15 seconds of the last check SHALL NOT cause another Ravon check. While the check is pending the button SHALL show that it is checking, and calls it finds SHALL appear without a reload.
+The call list SHALL offer a "Check Ravon now" button, open to everyone, that makes the worker check Ravon for new calls right away instead of at the next scheduled check. Presses within 15 seconds of the last check SHALL NOT cause another Ravon check. While the check is pending the button SHALL show that it is checking, and calls it finds SHALL appear without a reload, marked as new.
 
 #### Scenario: Check now
 - **WHEN** a user presses Check Ravon now while the worker is idle

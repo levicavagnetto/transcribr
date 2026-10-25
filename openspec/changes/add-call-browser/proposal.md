@@ -8,7 +8,7 @@ After `add-call-transcription-core`, the instance collects and transcribes the s
 
 - **Call list** replaces the core change's status home page. It shows every listed call, newest first: time, length, caller number, answered-by text and processing state. It filters by processing state and date range, and searches transcript words and caller numbers. Transcribe buttons appear on calls missed while the server was off.
 - **Call detail:** the call's details and its speaker-labeled transcript with timestamps. It has Listen (the recording streamed from Ravon through the server, never saved), Transcribe/Retry, and the failure reason for Failed calls.
-- **Copy for ChatGPT:** one click copies a research prompt, the call's details (phone number only if the user asks) and the transcript. It works on the plain-HTTP shop network.
+- **Copy for ChatGPT:** one click copies a research prompt, the call's details (phone number only if the user asks) and the transcript, with a preview of exactly what gets copied. It works on the plain-HTTP shop network.
 - **Research prompt setting:** the admin edits the prompt in the admin Settings screen.
 - **Live updates:** the list and the open call reflect new calls and state changes within 30 seconds.
 - **Check Ravon now:** a button on the call list asks the worker to check Ravon for new calls right away, instead of waiting for the next scheduled check.
