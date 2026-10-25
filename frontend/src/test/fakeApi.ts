@@ -1,13 +1,23 @@
 // A stand-in for the Transcribr API in component tests: register handlers per "METHOD /path",
 // and every request is recorded so tests can check what the UI sent.
 
-import type { AuthState, QueueList, SettingsResponse, Status } from "../api/hooks";
+import type {
+  AuthState,
+  CallDetail,
+  CallList,
+  CallListItem,
+  QueueList,
+  SettingsResponse,
+  Status,
+  Transcript,
+} from "../api/hooks";
 
-type Handler = (body: unknown) => { status?: number; body: unknown };
+type Handler = (body: unknown, query: URLSearchParams) => { status?: number; body: unknown };
 
 export interface SentRequest {
   method: string;
   path: string;
+  query: URLSearchParams;
   body: unknown;
   headers: Record<string, string>;
 }
@@ -25,14 +35,14 @@ export function installFakeApi(): FakeApi {
     const method = (init.method ?? "GET").toUpperCase();
     const path = url.pathname.replace(/^\/api\/v1/, "");
     const body: unknown = typeof init.body === "string" ? JSON.parse(init.body) : undefined;
-    sent.push({ method, path, body, headers: (init.headers ?? {}) as Record<string, string> });
+    sent.push({ method, path, query: url.searchParams, body, headers: (init.headers ?? {}) as Record<string, string> });
     const handler = handlers.get(`${method} ${path}`);
     if (!handler) {
       return new Response(JSON.stringify({ error: { code: "not_found", message: "Not Found" } }), {
         status: 404,
       });
     }
-    const result = handler(body);
+    const result = handler(body, url.searchParams);
     return new Response(JSON.stringify(result.body), { status: result.status ?? 200 });
   };
   vi.stubGlobal("fetch", vi.fn(fakeFetch));
@@ -67,9 +77,18 @@ export const auth = (state: AuthState["state"], username: string | null = null):
   username: state === "logged_in" ? (username ?? "admin") : null,
 });
 
+export const DEFAULT_PROMPT =
+  "Below is a phone call between our tire and auto shop and a customer. List what the customer asked for.";
+
 export function settings(overrides: Partial<SettingsResponse["values"]> = {}): SettingsResponse {
   return {
-    values: { store_queues: [], poll_interval_minutes: 2, time_zone: "America/Chicago", ...overrides },
+    values: {
+      store_queues: [],
+      poll_interval_minutes: 2,
+      time_zone: "America/Chicago",
+      research_prompt: DEFAULT_PROMPT,
+      ...overrides,
+    },
     fields: [
       { key: "store_queues", label: "Store queues", message: "Invalid value." },
       {
@@ -80,6 +99,14 @@ export function settings(overrides: Partial<SettingsResponse["values"]> = {}): S
         maximum: 30,
       },
       { key: "time_zone", label: "Store time zone", message: "Unknown time zone." },
+      {
+        key: "research_prompt",
+        label: "Research prompt",
+        message: "The research prompt must be 1 to 4,000 characters, and not only spaces.",
+        default: DEFAULT_PROMPT,
+        min_length: 1,
+        max_length: 4000,
+      },
     ],
   };
 }
@@ -93,6 +120,57 @@ export function queueList(overrides: Partial<QueueList> = {}): QueueList {
     ],
     fetched_at: "2026-10-22T14:00:00Z",
     refresh_requested: false,
+    ...overrides,
+  };
+}
+
+export function call(overrides: Partial<CallListItem> = {}): CallListItem {
+  return {
+    id: 90012417,
+    queue: "tireProz-salescustserv",
+    start_local: "2026-10-22 11:41:00",
+    start_utc: "2026-10-22T16:41:00Z",
+    minutes: 4.6167,
+    caller_number: "(405) 555-0187",
+    answered_by: "SW Counter Sales",
+    state: "transcribed",
+    has_transcript: true,
+    no_speech: false,
+    passage: null,
+    ...overrides,
+  };
+}
+
+export function callList(calls: CallListItem[], nextCursor: string | null = null): CallList {
+  return { calls, next_cursor: nextCursor };
+}
+
+export function callDetail(overrides: Partial<CallDetail> = {}): CallDetail {
+  const { passage: _passage, ...summary } = call();
+  return {
+    ...summary,
+    auto_queued: true,
+    failure_reason: null,
+    transcribed_at: "2026-10-22T16:47:00Z",
+    language: "en",
+    model: "small.en",
+    ...overrides,
+  };
+}
+
+export function transcript(overrides: Partial<Transcript> = {}): Transcript {
+  return {
+    call_id: 90012417,
+    language: "en",
+    model: "small.en",
+    transcribed_at: "2026-10-22T16:47:00Z",
+    no_speech: false,
+    speakers: ["Speaker 1", "Speaker 2"],
+    segments: [
+      { idx: 0, start_s: 0, end_s: 3.5, speaker: "Speaker 1", text: "Thanks for calling, front counter." },
+      { idx: 1, start_s: 4.2, end_s: 9.8, speaker: "Speaker 2", text: "I need tires for my 2019 Silverado." },
+      { idx: 2, start_s: 65, end_s: 70, speaker: "Speaker 2", text: "About nine hundred for all four." },
+    ],
     ...overrides,
   };
 }

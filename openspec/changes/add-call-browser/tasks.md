@@ -13,12 +13,12 @@
 
 ## 2. Calls and Call screens
 
-- [ ] 2.1 Build the Calls view at `/` (design D6: table, state toggle buttons and date filters, search field with the "at m:ss" passage line and highlights, the notes column with New, No speech and Transcribe on Not transcribed rows, infinite scroll, "List the week before from Ravon", the first-setup notice), and move the collection figures into the app bar status chip; verify component tests for filtering, combined filters, search results, Transcribe and the load-earlier button
-- [ ] 2.2 Build the Call view at `/calls/:id` (details grid including how and when it was transcribed, the transcript with timestamps and speaker labels, Listen, Transcribe and Retry with the failure reason, the "no speech" message); verify component tests for each call state and the Listen error message
-- [ ] 2.3 Implement the copy helper and Copy for ChatGPT (design D4: text format, include-phone-number switch, the "what gets copied" preview, the three-step fallback, a confirmation snackbar); verify unit tests for the exact copied text with and without the number, a test that the preview shows exactly that text, and for each fallback step when the previous one is unavailable
-- [ ] 2.4 Add the research prompt section to the admin Settings screen, and verify component tests for editing and the empty-prompt message
-- [ ] 2.5 Verify live updates with a component test using fake timers: a new call appears and a Waiting call becomes Transcribed within one refetch interval
-- [ ] 2.6 Add the Check Ravon now button to the Calls view (design D7); verify component tests for sending the request, "Checking…" until the last check changes, the list refreshing, the busy message, and the disabled state when the worker is stopped
+- [x] 2.1 Build the Calls view at `/` (design D6: table, state toggle buttons and date filters, search field with the "at m:ss" passage line and highlights, the notes column with New, No speech and Transcribe on Not transcribed rows, infinite scroll, "List the week before from Ravon", the first-setup notice), and move the collection figures into the app bar status chip; verify component tests for filtering, combined filters, search results, Transcribe and the load-earlier button
+- [x] 2.2 Build the Call view at `/calls/:id` (details grid including how and when it was transcribed, the transcript with timestamps and speaker labels, Listen, Transcribe and Retry with the failure reason, the "no speech" message); verify component tests for each call state and the Listen error message
+- [x] 2.3 Implement the copy helper and Copy for ChatGPT (design D4: text format, include-phone-number switch, the "what gets copied" preview, the three-step fallback, a confirmation snackbar); verify unit tests for the exact copied text with and without the number, a test that the preview shows exactly that text, and for each fallback step when the previous one is unavailable
+- [x] 2.4 Add the research prompt section to the admin Settings screen, and verify component tests for editing and the empty-prompt message
+- [x] 2.5 Verify live updates with a component test using fake timers: a new call appears and a Waiting call becomes Transcribed within one refetch interval
+- [x] 2.6 Add the Check Ravon now button to the Calls view (design D7); verify component tests for sending the request, "Checking…" until the last check changes, the list refreshing, the busy message, and the disabled state when the worker is stopped
 
 ## 3. End-to-end checks
 

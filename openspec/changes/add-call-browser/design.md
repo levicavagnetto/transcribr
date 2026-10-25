@@ -34,6 +34,8 @@ Mockups: the design canvas at https://claude.ai/artifact/9WxKCnhBUmpG7UZKVH4MD1 
 - `GET /api/v1/calls/{id}/audio` streams from Ravon. It's the one GET documented as reaching Ravon, as the `web-app` REST rule allows.
 - `POST /api/v1/calls/{id}/transcribe` (from the core change) covers both Transcribe and Retry.
 - `POST /api/v1/check-ravon` asks the worker to check Ravon now (D7).
+- `GET /api/v1/research-prompt` returns the prompt for Copy for ChatGPT (D5).
+- The OpenAPI document declares the `X-Transcribr: 1` header on every write, so the API docs page's "Try it out" sends it (added during the build at the user's request).
 - Fingerprints are excluded at the response-schema level: the Pydantic models have no field for them, so they can't leak by accident.
 
 ### D2. Search
@@ -60,7 +62,8 @@ Mockups: the design canvas at https://claude.ai/artifact/9WxKCnhBUmpG7UZKVH4MD1 
 
 ### D5. Research prompt setting
 - A new `research_prompt` key in the settings registry from the core change, validated as 1 to 4,000 characters.
-- It gets its own section on the admin Settings screen.
+- It gets its own section on the admin Settings screen, with its own Save and a Reset to the default (the settings fields now carry each setting's `default`).
+- Staff copy calls without the admin login, so the prompt is also readable at the open `GET /api/v1/research-prompt`. Only the admin can change it. (Added during the build on 2026-10-25: reading it through the admin-only settings endpoint would have failed for staff.)
 - The default text is the one in the mockup.
 
 ### D6. UI structure

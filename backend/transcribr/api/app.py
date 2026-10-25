@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -36,6 +37,31 @@ def _log_setup_code(code: str) -> None:
     log.warning("No admin account yet. Admin setup code: %s", code)
     log.warning("Open the web app, follow the footer Admin link, and enter this code.")
     log.warning("=" * 60)
+
+
+def _openapi_with_write_header(app: FastAPI) -> Callable[[], dict[str, Any]]:
+    """Declare the write header on every API write, so the docs page's "Try it out" sends it."""
+
+    def build() -> dict[str, Any]:
+        if app.openapi_schema is None:
+            schema = get_openapi(title=app.title, version=app.version, routes=app.routes)
+            header = {
+                "name": WRITE_HEADER,
+                "in": "header",
+                "required": True,
+                "schema": {"type": "string", "enum": ["1"], "default": "1"},
+                "description": "Required on every API write, so other websites can't send writes.",
+            }
+            for path, operations in schema.get("paths", {}).items():
+                if not path.startswith("/api/"):
+                    continue
+                for method, operation in operations.items():
+                    if method.upper() not in _SAFE_METHODS:
+                        operation.setdefault("parameters", []).append(dict(header))
+            app.openapi_schema = schema
+        return app.openapi_schema
+
+    return build
 
 
 def create_app(
@@ -108,6 +134,7 @@ def create_app(
 
     for module in (system, calls, auth, admin):
         app.include_router(module.router)
+    app.openapi = _openapi_with_write_header(app)  # type: ignore[method-assign]
 
     ui_dir = config.ui_dir.resolve()
 

@@ -131,3 +131,18 @@ def test_the_openapi_document_covers_every_route(api: Api) -> None:
         assert method.lower() in document["paths"].get(path, {}), (method, path)
         operation = document["paths"][path][method.lower()]
         assert "200" in operation["responses"], (method, path)
+
+
+def test_the_docs_page_sends_the_write_header_on_every_write(api: Api) -> None:
+    document = api.client.get("/api/v1/openapi.json").json()
+    for method, path in api_routes(api):
+        operation = document["paths"].get(path, {}).get(method.lower())
+        if operation is None:
+            continue
+        headers = [p for p in operation.get("parameters", []) if p["in"] == "header"]
+        if method in ("GET", "HEAD", "OPTIONS"):
+            assert headers == [], (method, path)
+        else:
+            assert [(h["name"], h["required"], h["schema"]["default"]) for h in headers] == [
+                ("X-Transcribr", True, "1")
+            ], (method, path)

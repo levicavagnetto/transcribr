@@ -24,8 +24,13 @@ class PasswordChange(BaseModel):
 
 
 def _field(setting: Setting[Any]) -> dict[str, Any]:
-    """A setting's label and message, plus its limits so the UI can check them as you type."""
-    field: dict[str, Any] = {"key": setting.key, "label": setting.label, "message": setting.message}
+    """A setting's label, message and default, plus the limits the UI checks as you type."""
+    field: dict[str, Any] = {
+        "key": setting.key,
+        "label": setting.label,
+        "message": setting.message,
+        "default": setting.default,
+    }
     schema = setting.adapter.json_schema()
     for limit, name in (
         ("minimum", "minimum"),

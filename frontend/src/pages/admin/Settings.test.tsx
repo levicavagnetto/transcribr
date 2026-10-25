@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { Status } from "../../api/hooks";
-import { auth, type FakeApi, installFakeApi, queueList, settings, status } from "../../test/fakeApi";
+import { auth, DEFAULT_PROMPT, type FakeApi, installFakeApi, queueList, settings, status } from "../../test/fakeApi";
 import { renderApp } from "../../test/renderApp";
 
 function serve(statusOverrides: Partial<Status> = {}): FakeApi {
@@ -142,5 +142,64 @@ describe("the settings page", () => {
     await userEvent.type(account.getByLabelText(/New password/), "short");
     await userEvent.click(account.getByRole("button", { name: "Change password" }));
     expect(await account.findByText("Use at least 12 characters.")).toBeInTheDocument();
+  });
+});
+
+describe("the research prompt", () => {
+  it("saves an edited prompt on its own", async () => {
+    const api = serve();
+    api.on("PUT /admin/settings", (body: unknown) => ({ body: settings(body as object) }));
+    renderApp("/admin/settings");
+    const section = within(await screen.findByRole("region", { name: "Research prompt" }));
+    const box = section.getByLabelText("Prompt");
+    expect(box).toHaveValue(DEFAULT_PROMPT);
+    expect(section.getByText(`${DEFAULT_PROMPT.length} / 4,000`)).toBeInTheDocument();
+    await userEvent.clear(box);
+    await userEvent.type(box, "Find three tire options.");
+    expect(section.getByText("24 / 4,000")).toBeInTheDocument();
+    await userEvent.click(section.getByRole("button", { name: "Save prompt" }));
+    expect(await screen.findByText("Research prompt saved.")).toBeInTheDocument();
+    const put = api.sent.find((r) => r.method === "PUT");
+    expect(put?.body).toEqual({ research_prompt: "Find three tire options." });
+  });
+
+  it("won't save an empty prompt and says the old one is still used", async () => {
+    const api = serve();
+    renderApp("/admin/settings");
+    const section = within(await screen.findByRole("region", { name: "Research prompt" }));
+    await userEvent.clear(section.getByLabelText("Prompt"));
+    await userEvent.click(section.getByRole("button", { name: "Save prompt" }));
+    expect(section.getByText("The prompt can't be empty. The previous prompt is still in use.")).toBeInTheDocument();
+    expect(section.getByLabelText("Prompt")).toHaveAttribute("aria-invalid", "true");
+    expect(api.sent.some((r) => r.method === "PUT")).toBe(false);
+  });
+
+  it("puts the default back", async () => {
+    serve();
+    renderApp("/admin/settings");
+    const section = within(await screen.findByRole("region", { name: "Research prompt" }));
+    await userEvent.clear(section.getByLabelText("Prompt"));
+    await userEvent.type(section.getByLabelText("Prompt"), "something else");
+    await userEvent.click(section.getByRole("button", { name: "Reset to the default" }));
+    expect(section.getByLabelText("Prompt")).toHaveValue(DEFAULT_PROMPT);
+  });
+
+  it("shows a prompt the server refused", async () => {
+    const api = serve();
+    api.on("PUT /admin/settings", () => ({
+      status: 422,
+      body: {
+        error: {
+          code: "invalid_setting",
+          message: "The research prompt must be 1 to 4,000 characters, and not only spaces.",
+          key: "research_prompt",
+        },
+      },
+    }));
+    renderApp("/admin/settings");
+    const section = within(await screen.findByRole("region", { name: "Research prompt" }));
+    await userEvent.type(section.getByLabelText("Prompt"), " more");
+    await userEvent.click(section.getByRole("button", { name: "Save prompt" }));
+    expect(await section.findByText(/must be 1 to 4,000 characters/)).toBeInTheDocument();
   });
 });

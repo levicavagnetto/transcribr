@@ -28,6 +28,7 @@ import {
   useStatus,
 } from "../../api/hooks";
 import { minutesAgo } from "../../format";
+import { monoFontFamily } from "../../theme";
 
 const RAVON_STATE_TEXT: Record<string, string> = {
   ok: "Login OK",
@@ -153,6 +154,74 @@ function MinutesField({
   );
 }
 
+function ResearchPrompt({ field, saved }: { field: SettingField | undefined; saved: string }) {
+  const save = useSaveSettings();
+  const [draft, setDraft] = useState(saved);
+  const [tried, setTried] = useState(false);
+  const [done, setDone] = useState(false);
+  const max = field?.max_length ?? 4000;
+  const empty = draft.trim().length === 0;
+  const tooLong = draft.length > max;
+  const serverError = save.error instanceof ApiError && save.error.key === "research_prompt" ? save.error.message : undefined;
+  let error: string | undefined;
+  if (tried && empty) error = "The prompt can't be empty. The previous prompt is still in use.";
+  if (tooLong) error = `Use ${max.toLocaleString("en-US")} characters or fewer.`;
+  error ??= serverError;
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    setTried(true);
+    if (empty || tooLong) return;
+    save.mutate({ research_prompt: draft }, { onSuccess: () => setDone(true) });
+  };
+  const fallback = typeof field?.default === "string" ? field.default : undefined;
+
+  return (
+    <Box component="form" onSubmit={submit} noValidate>
+      <Section title="Research prompt">
+        <Typography color="text.secondary">
+          Copy for ChatGPT puts this text first, then the call's date, time and length, then the transcript. Write it the
+          way you'd ask ChatGPT yourself.
+        </Typography>
+        <TextField
+          label="Prompt"
+          multiline
+          minRows={5}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setTried(false);
+          }}
+          error={Boolean(error)}
+          helperText={error ?? `Between 1 and ${max.toLocaleString("en-US")} characters.`}
+        />
+        <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 1.5 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontFamily: monoFontFamily }}>
+            {draft.length.toLocaleString("en-US")} / {max.toLocaleString("en-US")}
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            {fallback !== undefined && (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setDraft(fallback);
+                  setTried(false);
+                }}
+              >
+                Reset to the default
+              </Button>
+            )}
+            <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={save.isPending}>
+              Save prompt
+            </Button>
+          </Box>
+        </Box>
+      </Section>
+      <Snackbar open={done} autoHideDuration={4000} onClose={() => setDone(false)} message="Research prompt saved." />
+    </Box>
+  );
+}
+
 function RavonLogin() {
   const { data } = useStatus();
   const retry = useRetryLogin();
@@ -254,38 +323,44 @@ export function Settings() {
 
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, alignItems: "flex-start" }}>
-      <Box component="form" onSubmit={submit} sx={{ flex: "999 1 560px", minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-        <Typography variant="h1">Settings</Typography>
-        {save.error && !(save.error instanceof ApiError && save.error.key) && <Alert severity="error">{save.error.message}</Alert>}
-        <StoreQueues selected={draft.store_queues} onChange={(queues) => set("store_queues", queues)} />
-        {fieldError("store_queues") && <Alert severity="error">{fieldError("store_queues")}</Alert>}
-        <Section title="Checking for new calls">
-          <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, maxWidth: 640 }}>
-            <MinutesField
-              field={settings.data?.fields.find((f) => f.key === "poll_interval_minutes")}
-              value={draft.poll_interval_minutes}
-              onChange={(minutes) => set("poll_interval_minutes", minutes)}
-              error={fieldError("poll_interval_minutes")}
-            />
-            <Autocomplete
-              options={zones}
-              value={draft.time_zone}
-              disableClearable
-              onChange={(_e, value) => set("time_zone", value)}
-              renderInput={(params) => (
-                <TextField {...params} label="Store time zone" error={Boolean(fieldError("time_zone"))} helperText={fieldError("time_zone") ?? " "} />
-              )}
-            />
+      <Box sx={{ flex: "999 1 560px", minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+        <Box component="form" onSubmit={submit} sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <Typography variant="h1">Settings</Typography>
+          {save.error && !(save.error instanceof ApiError && save.error.key) && <Alert severity="error">{save.error.message}</Alert>}
+          <StoreQueues selected={draft.store_queues} onChange={(queues) => set("store_queues", queues)} />
+          {fieldError("store_queues") && <Alert severity="error">{fieldError("store_queues")}</Alert>}
+          <Section title="Checking for new calls">
+            <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, maxWidth: 640 }}>
+              <MinutesField
+                field={settings.data?.fields.find((f) => f.key === "poll_interval_minutes")}
+                value={draft.poll_interval_minutes}
+                onChange={(minutes) => set("poll_interval_minutes", minutes)}
+                error={fieldError("poll_interval_minutes")}
+              />
+              <Autocomplete
+                options={zones}
+                value={draft.time_zone}
+                disableClearable
+                onChange={(_e, value) => set("time_zone", value)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Store time zone" error={Boolean(fieldError("time_zone"))} helperText={fieldError("time_zone") ?? " "} />
+                )}
+              />
+            </Box>
+          </Section>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Button type="submit" variant="contained" size="large" startIcon={<SaveIcon />} disabled={save.isPending}>
+              Save settings
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              Changes apply without a restart.
+            </Typography>
           </Box>
-        </Section>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Button type="submit" variant="contained" size="large" startIcon={<SaveIcon />} disabled={save.isPending}>
-            Save settings
-          </Button>
-          <Typography variant="body2" color="text.secondary">
-            Changes apply without a restart.
-          </Typography>
         </Box>
+        <ResearchPrompt
+          field={settings.data?.fields.find((f) => f.key === "research_prompt")}
+          saved={settings.data?.values.research_prompt ?? ""}
+        />
       </Box>
       <Box sx={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 3 }}>
         <RavonLogin />

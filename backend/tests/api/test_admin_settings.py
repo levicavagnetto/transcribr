@@ -31,6 +31,7 @@ def test_settings_show_values_and_labels(admin: Api) -> None:
         "key": "poll_interval_minutes",
         "label": "Check for new calls every (minutes)",
         "message": "The poll interval must be a whole number of minutes between 1 and 30.",
+        "default": 2,
         "minimum": 1,
         "maximum": 30,
     }

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends
 from transcribr.admin import Admins
 from transcribr.api.deps import AdminsDep, Db, Now, get_config
 from transcribr.config import Config
+from transcribr.settings import RESEARCH_PROMPT, Settings
 from transcribr.status import build_status
 from transcribr.store.state import CHECK_REQUESTED, LAST_POLL_OK, State
 
@@ -30,6 +31,12 @@ def status(
         admin_exists=Admins.exists(admins),
     )
     return report.as_dict()
+
+
+@router.get("/research-prompt")
+def research_prompt(conn: Db) -> dict[str, str]:
+    """The prompt Copy for ChatGPT puts first. Anyone can read it; only the admin changes it."""
+    return {"prompt": Settings(conn).get(RESEARCH_PROMPT)}
 
 
 @router.post("/check-ravon")

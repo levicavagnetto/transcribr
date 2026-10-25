@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { auth, installFakeApi, status } from "../test/fakeApi";
+import { auth, callList, installFakeApi, status } from "../test/fakeApi";
 import { renderApp } from "../test/renderApp";
 import { problemsFrom } from "./StatusBanner";
 
@@ -30,6 +30,7 @@ describe("the status banner", () => {
     const api = installFakeApi();
     api.on("GET /status", status({ ravon_state: "unreachable", guard_violations: 1 }));
     api.on("GET /auth/state", auth("login_required"));
+    api.on("GET /calls", callList([]));
     renderApp("/");
     const alerts = await screen.findAllByRole("alert");
     expect(alerts.map((a) => a.textContent)).toEqual([
@@ -42,6 +43,7 @@ describe("the status banner", () => {
     const api = installFakeApi();
     api.on("GET /status", status({ ravon_state: "login_failed" }));
     api.on("GET /auth/state", auth("login_required"));
+    api.on("GET /calls", callList([]));
     const first = renderApp("/");
     const alert = await screen.findByRole("alert");
     expect(within(alert).queryByRole("button", { name: "Retry login" })).not.toBeInTheDocument();

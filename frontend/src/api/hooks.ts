@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./client";
 
@@ -38,6 +38,7 @@ export interface SettingsValues {
   store_queues: string[];
   poll_interval_minutes: number;
   time_zone: string;
+  research_prompt?: string;
   [key: string]: unknown;
 }
 
@@ -45,8 +46,11 @@ export interface SettingField {
   key: string;
   label: string;
   message: string;
+  default?: unknown;
   minimum?: number;
   maximum?: number;
+  min_length?: number;
+  max_length?: number;
 }
 
 export interface SettingsResponse {
@@ -60,11 +64,79 @@ export interface QueueList {
   refresh_requested: boolean;
 }
 
+export type CallState = "not_transcribed" | "waiting" | "processing" | "transcribed" | "failed";
+
+export interface PassagePart {
+  text: string;
+  hit: boolean;
+}
+
+export interface CallSummary {
+  id: number;
+  queue: string;
+  start_local: string;
+  start_utc: string;
+  minutes: number;
+  caller_number: string;
+  answered_by: string;
+  state: CallState;
+  has_transcript: boolean;
+  no_speech: boolean;
+}
+
+export interface CallListItem extends CallSummary {
+  passage: { at_s: number; parts: PassagePart[] } | null;
+}
+
+export interface CallList {
+  calls: CallListItem[];
+  next_cursor: string | null;
+}
+
+export interface CallDetail extends CallSummary {
+  auto_queued: boolean;
+  failure_reason: string | null;
+  transcribed_at: string | null;
+  language: string | null;
+  model: string | null;
+}
+
+export interface Segment {
+  idx: number;
+  start_s: number;
+  end_s: number;
+  speaker: string;
+  text: string;
+}
+
+export interface Transcript {
+  call_id: number;
+  language: string;
+  model: string;
+  transcribed_at: string;
+  no_speech: boolean;
+  speakers: string[];
+  segments: Segment[];
+}
+
+export interface CallFilters {
+  state?: CallState;
+  from?: string;
+  to?: string;
+  q?: string;
+  number?: string;
+}
+
 export const keys = {
   status: ["status"] as const,
   auth: ["auth"] as const,
   settings: ["admin", "settings"] as const,
   queues: ["admin", "queues"] as const,
+  calls: ["calls"] as const,
+  callList: (filters: CallFilters) => ["calls", "list", filters] as const,
+  call: (id: number) => ["calls", "one", id] as const,
+  transcript: (id: number) => ["calls", "transcript", id] as const,
+  researchPrompt: ["research-prompt"] as const,
 };
 
 export function useStatus() {
@@ -72,6 +144,72 @@ export function useStatus() {
     queryKey: keys.status,
     queryFn: () => api.get<Status>("/status"),
     refetchInterval: REFRESH_MS,
+  });
+}
+
+export const PAGE_SIZE = 50;
+
+function callListPath(filters: CallFilters, cursor: string | null): string {
+  const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
+  if (cursor) params.set("cursor", cursor);
+  return `/calls?${params.toString()}`;
+}
+
+// Newest first, one page at a time; refetched every REFRESH_MS so new calls and state changes show up.
+export function useCalls(filters: CallFilters) {
+  return useInfiniteQuery({
+    queryKey: keys.callList(filters),
+    queryFn: ({ pageParam }) => api.get<CallList>(callListPath(filters, pageParam)),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.next_cursor,
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useCall(id: number) {
+  return useQuery({
+    queryKey: keys.call(id),
+    queryFn: () => api.get<CallDetail>(`/calls/${id}`),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useTranscript(id: number, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.transcript(id),
+    queryFn: () => api.get<Transcript>(`/calls/${id}/transcript`),
+    enabled,
+  });
+}
+
+export function useResearchPrompt() {
+  return useQuery({
+    queryKey: keys.researchPrompt,
+    queryFn: () => api.get<{ prompt: string }>("/research-prompt"),
+  });
+}
+
+export function useTranscribe() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.post<{ queued: boolean; state: CallState }>(`/calls/${id}/transcribe`),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.calls });
+      void client.invalidateQueries({ queryKey: keys.status });
+    },
+  });
+}
+
+export function useLoadEarlier() {
+  return useMutation({ mutationFn: () => api.post<{ requested: boolean }>("/calls/load-earlier") });
+}
+
+export function useCheckRavon() {
+  return useMutation({
+    mutationFn: () => api.post<{ requested: boolean; last_poll_ok: string | null }>("/check-ravon"),
   });
 }
 
@@ -129,6 +267,7 @@ export function useSaveSettings() {
     onSuccess: (data) => {
       client.setQueryData(keys.settings, data);
       void client.invalidateQueries({ queryKey: keys.status });
+      void client.invalidateQueries({ queryKey: keys.researchPrompt });
     },
   });
 }

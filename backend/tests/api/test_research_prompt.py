@@ -43,3 +43,17 @@ def test_an_empty_or_too_long_prompt_is_refused_and_the_old_one_stays(admin: Api
 def test_exactly_four_thousand_characters_is_fine(admin: Api) -> None:
     response = admin.put("/api/v1/admin/settings", json={"research_prompt": "y" * 4000})
     assert response.status_code == 200
+
+
+def test_anyone_can_read_the_prompt_for_copying(admin: Api) -> None:
+    edited = "Find this customer three tire options."
+    admin.put("/api/v1/admin/settings", json={"research_prompt": edited})
+    admin.client.cookies.clear()  # an ordinary staff member, no admin session
+    response = admin.client.get("/api/v1/research-prompt")
+    assert response.status_code == 200
+    assert response.json() == {"prompt": edited}
+
+
+def test_the_settings_fields_carry_the_default_for_reset(admin: Api) -> None:
+    fields = {f["key"]: f for f in admin.client.get("/api/v1/admin/settings").json()["fields"]}
+    assert fields["research_prompt"]["default"] == DEFAULT_RESEARCH_PROMPT
