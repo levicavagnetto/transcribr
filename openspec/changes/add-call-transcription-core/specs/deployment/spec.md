@@ -6,12 +6,12 @@ Makes an instance easy to install, run unattended, update and move on any machin
 
 ## ADDED Requirements
 
-### Requirement: Runs from a published container image
-The instance SHALL be started from a single container image with one compose file and one environment file. No other software needs to be installed on the host except Docker. The image SHALL be available for amd64 (64-bit Intel or AMD processors) and run on Linux, Windows (Docker Desktop with WSL2) and macOS on Intel. ARM hosts are not supported.
+### Requirement: Runs from one container image
+The instance SHALL be started from a single container image, built on the host from the project folder, with one compose file and one environment file. No other software needs to be installed on the host except Docker. Publishing the image to a registry is later work. The image SHALL be available for amd64 (64-bit Intel or AMD processors) and run on Linux, Windows (Docker Desktop with WSL2) and macOS on Intel. ARM hosts are not supported.
 
 #### Scenario: Fresh install
-- **WHEN** an operator places the compose file and an environment file with Ravon credentials on a host with Docker, and runs the start command
-- **THEN** the web app becomes reachable on the configured port, with no further installation steps
+- **WHEN** an operator places the project folder with an environment file holding the Ravon credentials on a host with Docker, and runs the start command
+- **THEN** the image is built and the web app becomes reachable on the configured port, with no further installation steps
 
 #### Scenario: Intel or AMD host
 - **WHEN** the compose file is used on a 64-bit Intel or AMD host
@@ -36,7 +36,7 @@ All instance data SHALL live in one named data volume: the database (calls, tran
 - **THEN** the new instance has the same data as the old one
 
 ### Requirement: Unattended operation
-The instance SHALL start when Docker starts and restart automatically after a crash. It SHALL report health to Docker, so an unhealthy instance can be seen and restarted.
+The instance SHALL start when Docker starts and restart automatically after a crash. It SHALL report health to Docker, so an unhealthy instance can be seen and restarted. On Windows and macOS, Docker Desktop only starts when a user signs in, so there the host must sign a user in automatically.
 
 #### Scenario: Host reboot
 - **WHEN** the host restarts and Docker starts
@@ -47,7 +47,7 @@ The instance SHALL start when Docker starts and restart automatically after a cr
 - **THEN** it is restarted automatically, the web app keeps serving during the restart, and queued calls continue afterwards
 
 ### Requirement: Safe updates
-Updating SHALL be pulling a newer image and restarting. Database schema changes SHALL be applied automatically on start. A failed schema change SHALL leave the data unchanged and stop the instance with a clear error.
+Updating SHALL be getting the newer project version, then rebuilding and restarting with one command. Database schema changes SHALL be applied automatically on start. A failed schema change SHALL leave the data unchanged and stop the instance with a clear error.
 
 #### Scenario: Update with a schema change
 - **WHEN** an instance starts on a newer image that changes the database schema

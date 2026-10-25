@@ -39,4 +39,4 @@ Transcribr v2 fixes this in three changes. This first change builds the core tha
 - **External system:** the Ravon admin site (`admin.ravon.net`), read-only. It adds steady but light load: one date-bounded search per queue every few minutes, plus one audio download per processed call.
 - **Dependencies:** a speech-to-text engine and model, a speaker separation and voice embedding toolkit with its models, SQLite, and Docker. Models are baked into the image.
 - **Data and privacy:** transcripts contain customer conversations and phone numbers. Voice fingerprints of everyone on a call are stored, but no audio. All data stays on the shop PC.
-- **Operations:** someone at the shop keeps the PC and Docker running. Updating means pulling a new image and restarting, and data is kept across updates.
+- **Operations:** someone at the shop keeps the PC and Docker running. Updating means getting the new version and rebuilding with one command, and data is kept across updates.

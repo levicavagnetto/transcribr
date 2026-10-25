@@ -74,4 +74,4 @@ The logged-in admin SHALL be able to change the password by entering the current
 
 #### Scenario: Forgotten password
 - **WHEN** an operator runs the documented reset command on the server
-- **THEN** the admin account is removed, a new setup code is written to the server log, and the next visit to `/admin` starts first-time setup
+- **THEN** the admin account is removed, the command prints a new setup code, and the next visit to `/admin` starts first-time setup

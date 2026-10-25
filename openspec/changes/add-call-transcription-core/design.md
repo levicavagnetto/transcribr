@@ -217,24 +217,25 @@ Each package depends only on `store` and its own inputs, so each can be tested a
 - **The admin password crosses the shop network unencrypted, because the app is served over plain HTTP.** → Accepted for a trusted shop network. Sessions are short (12 hours), failed logins are slowed down, and the app can later be put behind HTTPS (for example, the same tunnel as the MCP change) without code changes.
 - **The setup code is printed in the server log.** → Only someone who can read the container logs can create the admin. The code is single-use and stops working once the admin exists.
 - **Model downloads are slow on the shop network.** → Models are baked in at build time, so a slow network only affects building the image, and the image can be built anywhere.
-- **The image will be about 1 GB with models.** → Accepted. It's pulled once per update.
+- **The image will be about 2 GB with models.** → Accepted. It's rebuilt on the host for each update; unchanged layers, the models included, come from Docker's build cache.
+- **Docker Desktop on Windows and macOS only starts when a user signs in.** → The host signs a user in automatically and doesn't sign out (README). Linux has no such limit.
 
 ## Migration Plan
 
 This is a new system, so there's no data to migrate.
 
 **Deployment:**
-1. Build or pull the image.
-2. Copy `compose.yaml` and `.env.example` to the host, and fill in `.env`.
-3. Run `docker compose up -d`.
+1. Copy the project folder to the host.
+2. Copy `.env.example` to `.env` and fill it in.
+3. Run `docker compose up -d --build`.
 4. Open the web app, follow the footer Admin link, create the admin with the setup code from `docker compose logs web`, and choose the store queues.
 
 **Rollback:**
 1. Run `docker compose down`.
-2. Start the previous image tag.
+2. Check out the previous version and run `docker compose up -d --build`.
 3. If a migration ran, restore the automatic pre-migration backup from `/data/backups`.
 
 ## Open Questions
 
-- **Where are images built and published?** Options are a local build on the shop PC, GitHub Container Registry, or another registry. This doesn't affect the specs or tasks: the image and compose file are the same either way.
+- **Where are images built and published?** Decided for now (2026-10-25): built on the host from the project folder, as the README describes. Publishing to a registry such as GitHub Container Registry is later work; the image and compose file stay the same either way.
 - **Is `small.en` accurate enough for part numbers and vehicle details across many calls,** or should the build default become `medium.en`? This is a build-argument change after real use.

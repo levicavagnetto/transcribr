@@ -7,7 +7,7 @@ Turns a listed call's recording into a speaker-labeled transcript with per-speak
 ## ADDED Requirements
 
 ### Requirement: Call processing states
-Every listed call SHALL have exactly one processing state: Not transcribed, Waiting, Processing, Transcribed, or Failed. The state SHALL be visible through the API.
+Every listed call SHALL have exactly one processing state: Not transcribed, Waiting, Processing, Transcribed, or Failed. A call's state SHALL be returned by its transcription request, and the status SHALL count calls by state. Reading any call's state comes with the call API in `add-call-browser`.
 
 #### Scenario: Automatic call moves through states
 - **WHEN** a call is queued automatically and processing succeeds
