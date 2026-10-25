@@ -33,6 +33,7 @@ Mockups (Calls and Call detail): see `docs/architecture.md`.
 - `GET /api/v1/calls/{id}/transcript` returns the segments with speaker labels and timestamps.
 - `GET /api/v1/calls/{id}/audio` streams from Ravon. It's the one GET documented as reaching Ravon, as the `web-app` REST rule allows.
 - `POST /api/v1/calls/{id}/transcribe` (from the core change) covers both Transcribe and Retry.
+- `POST /api/v1/check-ravon` asks the worker to check Ravon now (D7).
 - Fingerprints are excluded at the response-schema level: the Pydantic models have no field for them, so they can't leak by accident.
 
 ### D2. Search
@@ -67,6 +68,12 @@ Mockups (Calls and Call detail): see `docs/architecture.md`.
 - **Call:** a header with chips and actions, plus a transcript list. Listen uses the native `<audio>` element styled with theme tokens.
 - **Status area:** the last-check and Waiting/Failed figures from the old home page move into a compact status chip in the app bar.
 - **Data fetching:** TanStack Query keys per filter set, with a 10-second `refetchInterval` while the tab is visible.
+
+### D7. Check Ravon now
+- `POST /api/v1/check-ravon` is an open action with the usual `X-Transcribr: 1` header. It sets a `check_requested` flag in the service state. The web service never talks to Ravon for this; only the worker holds the Ravon session.
+- The worker reads the flag on every loop: about once a second when idle, or right after a job finishes. If the last check was at least 15 seconds ago, it checks now and restarts its schedule from there. Either way it clears the flag.
+- The UI notes the last check time when the button is pressed, shows "Checking…", and refetches the status every 2 seconds until that time changes. Then it refreshes the list. If Ravon reports an error, the button shows it; after 60 seconds it gives up with a message.
+- **Alternative:** the web service checks Ravon itself. Rejected, because two services would then log in to Ravon and pace their requests separately.
 
 ## Risks / Trade-offs
 

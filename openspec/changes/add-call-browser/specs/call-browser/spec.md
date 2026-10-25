@@ -99,6 +99,25 @@ The call list and the open call SHALL reflect new calls and state changes within
 - **WHEN** a call the user has open finishes transcribing
 - **THEN** its transcript appears within 30 seconds
 
+### Requirement: Check Ravon now
+The call list SHALL offer a "Check Ravon now" button, open to everyone, that makes the worker check Ravon for new calls right away instead of at the next scheduled check. Presses within 15 seconds of the last check SHALL NOT cause another Ravon check. While the check is pending the button SHALL show that it is checking, and calls it finds SHALL appear without a reload.
+
+#### Scenario: Check now
+- **WHEN** a user presses Check Ravon now while the worker is idle
+- **THEN** a check runs within 5 seconds, the last check time updates, and any new calls appear in the list
+
+#### Scenario: Several presses
+- **WHEN** several users press it within 15 seconds
+- **THEN** Ravon is checked once
+
+#### Scenario: Worker busy
+- **WHEN** the button is pressed while the worker is transcribing a call
+- **THEN** the check runs as soon as that call finishes, and the button says it is waiting for the current transcription
+
+#### Scenario: Worker stopped
+- **WHEN** the worker isn't running
+- **THEN** the button is disabled and says why
+
 ### Requirement: Call API for clients
 The call list, call detail and transcript SHALL be available as GET endpoints with cursor paging, and the actions as non-GET endpoints. The API SHALL never return voice fingerprints.
 
