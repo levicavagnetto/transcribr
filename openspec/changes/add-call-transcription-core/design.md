@@ -78,6 +78,7 @@ A `jobs` table holds one row per pending job. A job has a type; this change has 
 - "Load earlier" lists the 7 days before the earliest time already listed. That boundary is stored (`listed_from`), set by the first-start listing and moved back by each "load earlier". It's not taken from the oldest call, which can sit well inside the listed range on quiet days.
 - The recording ID is the key, and inserts that would duplicate it are ignored.
 - The default poll interval is 2 minutes.
+- **A newly chosen queue** is followed from the worker's next poll after the Settings save, not from the save itself. A call that ends in between (at most one poll interval) is listed but not auto-transcribed, like any missed call. Kept on purpose (decided 2026-10-24): it happens once per queue, nothing is lost, and only the worker records follow times.
 - **Times:** Ravon's `Start Time` is in the store time zone setting. It's stored as-is (`start_local`) and converted to UTC (`start_utc`) on insert. Search windows are computed in UTC and converted to store-local wall time for the search form.
 - **"Load earlier"** runs in the worker, which owns the Ravon session: the API queues a `load_earlier` job, and the worker carries it out on its next loop.
 - Requests go out one at a time, at least 1 second apart. After 5 failures in a row, the worker backs off with increasing delays, up to a 10-minute cap.
