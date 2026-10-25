@@ -47,7 +47,7 @@ ignore = ["PLR2004"]
 "tests/**" = ["S101", "S105", "S106", "S107", "PLR0911", "PLR0913", "PLC0415", "SIM103"]
 
 [tool.pyright]
-include = ["transcribr", "tests"]
+include = ["transcribr", "tests", "../scripts"]
 pythonVersion = "3.14"
 typeCheckingMode = "standard"
 strict = ["transcribr"]
