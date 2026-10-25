@@ -9,6 +9,13 @@
 # Paths here resolve from the first file's folder (the repo root).
 
 services:
+  web:
+    environment:
+      # Nothing answers here in the web container, so Listen there fails safely instead of
+      # sending the fake credentials to the real Ravon. Listen is checked from the worker's
+      # namespace instead (scripts/stack_check.py, smoke).
+      RAVON_BASE_URL: http://127.0.0.1:8090
+
   worker:
     network_mode: service:fake-ravon
     environment:

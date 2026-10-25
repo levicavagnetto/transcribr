@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import statistics
 import subprocess
 import sys
@@ -56,6 +57,10 @@ WEB_LATENCY_LIMIT = 2.0
 
 # Each mode uses its own block of recording IDs (Ravon's are 5-12 digits).
 AUTO_CALL, MISSED_CALL, CRASH_CALL, AFTER_UPDATE_CALL = 90001001, 90001002, 90001003, 90001004
+CHECK_NOW_CALL = 90001005
+AUTO_CALLER = "(405) 555-0142"
+FIXTURE_BYTES = (ROOT / "backend/tests/fixtures/audio/two-voices.mp3").stat().st_size
+CHECK_NOW_LIMIT = 30  # seconds; the schedule is 30 minutes during that step
 BACKLOG_FIRST, BACKLOG_COUNT = 90002001, 50
 
 
@@ -105,12 +110,50 @@ class Stack:
         rows = self.db(sql)
         return rows[0][0] if rows else None
 
-    def add_calls(self, first: int, *, ends_in: float, count: int = 1) -> None:
+    def add_calls(
+        self, first: int, *, ends_in: float, count: int = 1, caller: str = "(405) 555-0100"
+    ) -> None:
         self.compose(
             "exec", "-T", "fake-ravon", "python", "-m", "tests.fake_ravon.serve",
             "add-call", str(first), "--queue", QUEUE, "--audio", "two-voices",
-            f"--ended-seconds-ago={-ends_in}", "--count", str(count),
+            f"--ended-seconds-ago={-ends_in}", "--count", str(count), "--caller", caller,
         )  # fmt: skip
+
+    def listen_from_worker_namespace(self, call_id: int) -> tuple[int, str, int]:
+        """Fetch a recording through a second web process in the worker's container.
+
+        The stack's own web service can't reach the fake Ravon (only the worker shares its
+        loopback), so this runs the same image's web service where it can, on port 8001.
+        """
+        self.compose("exec", "-d", "-e", "TRANSCRIBR_PORT=8001", "worker", "transcribr", "web")
+        fetch = (
+            "import sys, time, urllib.request\n"
+            "base = 'http://127.0.0.1:8001/api/v1'\n"
+            "for _ in range(60):\n"
+            "    try:\n"
+            "        urllib.request.urlopen(base + '/health', timeout=2)\n"
+            "        break\n"
+            "    except Exception:\n"
+            "        time.sleep(1)\n"
+            "r = urllib.request.urlopen(base + '/calls/' + sys.argv[1] + '/audio', timeout=90)\n"
+            "print(r.status, r.headers['content-type'], len(r.read()))\n"
+        )
+        stop = (
+            "import os, signal\n"
+            "for pid in filter(str.isdigit, os.listdir('/proc')):\n"
+            "    try:\n"
+            "        cmd = open('/proc/' + pid + '/cmdline', 'rb').read()\n"
+            "    except OSError:\n"
+            "        continue\n"
+            "    if cmd.endswith(b'transcribr\\x00web\\x00'):\n"
+            "        os.kill(int(pid), signal.SIGTERM)\n"
+        )
+        try:
+            out = self.compose("exec", "-T", "worker", "python", "-c", fetch, str(call_id)).stdout
+        finally:
+            self.compose("exec", "-T", "worker", "python", "-c", stop, check=False)
+        status, content_type, size = shlex.split(out.strip().splitlines()[-1])
+        return int(status), content_type, int(size)
 
     def restarts(self, service: str) -> int:
         out = subprocess.run(  # noqa: S603
@@ -249,7 +292,7 @@ class Stack:
 
 def smoke(stack: Stack) -> None:
     step("a call that ends while the worker runs is transcribed automatically")
-    stack.add_calls(AUTO_CALL, ends_in=20)
+    stack.add_calls(AUTO_CALL, ends_in=20, caller=AUTO_CALLER)
     stack.wait_for_state(AUTO_CALL, "transcribed")
     if stack.one(f"SELECT auto_queued FROM calls WHERE id = {AUTO_CALL}") != 1:  # noqa: S608
         raise StepFailed("the call was transcribed but not marked as auto-queued")
@@ -278,6 +321,8 @@ def smoke(stack: Stack) -> None:
     stack.wait_for_state(MISSED_CALL, "transcribed")
     print("transcribed")
 
+    find_and_read_a_call(stack)
+
     step("the home page loads and its counts match the database")
     home = stack.web.get("/")
     if home.status_code != 200 or "text/html" not in home.headers.get("content-type", ""):
@@ -293,7 +338,85 @@ def smoke(stack: Stack) -> None:
     if status["failed_last_24h"] or status["ravon_state"] != "ok" or status["guard_violations"]:
         raise StepFailed(f"unexpected status: {status}")
     print(f"listed {shown[0]}, transcribed {shown[1]}, waiting {shown[2]}, failed 0, Ravon ok")
+
+    check_ravon_now(stack)
     stack.check_invariants()
+
+
+def find_and_read_a_call(stack: Stack) -> None:
+    """The call browser's API on the real stack (add-call-browser 3.1)."""
+    step("find the call by a phrase from its transcript, and by its number")
+    transcript = stack.web.get(f"/api/v1/calls/{AUTO_CALL}/transcript").json()
+    words = next(
+        found
+        for segment in transcript["segments"]
+        if len(found := re.findall(r"\w+", segment["text"])) >= 2
+    )
+    phrase = " ".join(words[:2])
+    hits = stack.web.get("/api/v1/calls", params={"q": phrase}).json()["calls"]
+    match = next((c for c in hits if c["id"] == AUTO_CALL), None)
+    if match is None or not any(p["hit"] for p in match["passage"]["parts"]):
+        raise StepFailed(f"searching {phrase!r} didn't find the call with a highlight: {hits}")
+    by_number = stack.web.get("/api/v1/calls", params={"number": "555-0142"}).json()["calls"]
+    if [c["id"] for c in by_number] != [AUTO_CALL]:
+        raise StepFailed(f"number search found {[c['id'] for c in by_number]}")
+    print(f"{phrase!r} found it at {match['passage']['at_s']:.0f} s; 555-0142 found it alone")
+
+    step("the call page's details and speaker-labelled transcript")
+    detail = stack.web.get(f"/api/v1/calls/{AUTO_CALL}").json()
+    if (detail["state"], detail["auto_queued"], detail["has_transcript"]) != (
+        "transcribed",
+        True,
+        True,
+    ):
+        raise StepFailed(f"call detail: {detail}")
+    labels = {s["speaker"] for s in transcript["segments"]}
+    if not transcript["segments"] or not all(re.fullmatch(r"Speaker \d+", s) for s in labels):
+        raise StepFailed(f"transcript: {transcript}")
+    print(f"{len(transcript['segments'])} lines from {sorted(labels)}")
+
+    step("Copy for ChatGPT gets the prompt, details and lines it formats")
+    prompt = stack.web.get("/api/v1/research-prompt").json()["prompt"]
+    lines = [
+        f"[{int(s['start_s']) // 60}:{int(s['start_s']) % 60:02d}] {s['speaker']}: {s['text']}"
+        for s in transcript["segments"]
+    ]
+    text = f"{prompt}\n\nCall: {detail['start_local']}\n\n" + "\n".join(lines)
+    pattern = r"Below is a phone call.+\n\nCall: .+\n\n(\[\d+:\d\d\] Speaker \d+: .+\n?)+"
+    if not re.fullmatch(pattern, text, flags=re.DOTALL):
+        raise StepFailed(f"the copy text doesn't have the expected shape:\n{text}")
+    print("prompt, call line and [m:ss] Speaker N lines all present")
+
+    step("Listen plays the recording through the server")
+    status, content_type, size = stack.listen_from_worker_namespace(AUTO_CALL)
+    if (status, content_type, size) != (200, "audio/mpeg", FIXTURE_BYTES):
+        raise StepFailed(f"Listen answered {status} {content_type} with {size} bytes")
+    print(f"200 audio/mpeg, {size} bytes, as Ravon sent it")
+
+
+def check_ravon_now(stack: Stack) -> None:
+    step(
+        f"Check Ravon now lists a new call within {CHECK_NOW_LIMIT} s, with the schedule at 30 min"
+    )
+    response = stack.web.put(
+        "/api/v1/admin/settings", headers=WRITE, json={"poll_interval_minutes": 30}
+    )
+    if response.status_code != 200:
+        raise StepFailed(f"settings: HTTP {response.status_code} {response.text}")
+    time.sleep(16)  # past the 15-second cooldown after the last check
+    stack.add_calls(CHECK_NOW_CALL, ends_in=-2)  # ended 2 s ago
+    started = time.monotonic()
+    response = stack.web.post("/api/v1/check-ravon", headers=WRITE)
+    if response.status_code != 200:
+        raise StepFailed(f"check-ravon: HTTP {response.status_code} {response.text}")
+    wait_until(
+        "Check Ravon now to list the call",
+        lambda: stack.state_of(CHECK_NOW_CALL) is not None,
+        CHECK_NOW_LIMIT,
+        every=1,
+    )
+    print(f"listed after {time.monotonic() - started:.1f} s")
+    stack.wait_for_state(CHECK_NOW_CALL, "transcribed")
 
 
 def resilience(stack: Stack) -> None:

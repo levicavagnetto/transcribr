@@ -38,10 +38,25 @@ class Site:
         self.fake = FakeRavon(now=_now)
         self.lock = threading.Lock()
 
-    def add_call(self, rid: int, queue: str, minutes: float, ended_seconds_ago: float, audio: str):
+    def add_call(  # noqa: PLR0917 - one value per call field
+        self,
+        rid: int,
+        queue: str,
+        minutes: float,
+        ended_seconds_ago: float,
+        audio: str,
+        caller: str = "(405) 555-0100",
+    ):
         start = _now() - timedelta(seconds=ended_seconds_ago) - timedelta(minutes=minutes)
         local = start.astimezone(ZoneInfo(self.fake.zone)).strftime(DATE_FORMAT)
-        call = FakeCall(rid, queue, local, minutes, audio=(FIXTURES / f"{audio}.mp3").read_bytes())
+        call = FakeCall(
+            rid,
+            queue,
+            local,
+            minutes,
+            caller=caller,
+            audio=(FIXTURES / f"{audio}.mp3").read_bytes(),
+        )
         with self.lock:
             self.fake.calls.append(call)
         return {"id": rid, "start_local": local}
@@ -90,6 +105,7 @@ def _control_handler(site: Site) -> type[BaseHTTPRequestHandler]:
                     float(body.get("minutes", 0.5)),
                     float(body.get("ended_seconds_ago", 5)),
                     body.get("audio", "two-voices"),
+                    body.get("caller", "(405) 555-0100"),
                 )
             else:
                 self.send_error(404)
@@ -137,6 +153,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     add.add_argument("--minutes", type=float, default=0.5)
     add.add_argument("--ended-seconds-ago", type=float, default=5)
     add.add_argument("--audio", choices=["two-voices", "silence"], default="two-voices")
+    add.add_argument("--caller", default="(405) 555-0100")
     add.add_argument("--count", type=int, default=1, help="add this many calls, IDs counting up")
     args = parser.parse_args(argv)
     if args.command is None:
@@ -150,6 +167,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "minutes": args.minutes,
                 "ended_seconds_ago": args.ended_seconds_ago,
                 "audio": args.audio,
+                "caller": args.caller,
             }
         ).encode()
         request = urllib.request.Request(
