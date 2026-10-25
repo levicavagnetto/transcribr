@@ -23,7 +23,7 @@
 ## 3. End-to-end checks
 
 - [x] 3.1 Extend the compose smoke test: a listed call is found by a transcript phrase and by its number; its detail shows the transcript; Listen returns audio; Copy for ChatGPT text matches the expected format; a missed call is transcribed from its Transcribe button; with the poll interval at 30 minutes, Check Ravon now lists a new call within seconds; verify that it passes in the `check` script
-- [ ] 3.2 With the user, on the shop PC against real Ravon: find a recent call by a phrase they remember, listen to it, copy it into ChatGPT, and record in the change notes whether the copied text was usable as is
+- [x] 3.2 With the user, on the shop PC against real Ravon: find a recent call by a phrase they remember, listen to it, copy it into ChatGPT, and record in the change notes whether the copied text was usable as is (Done 2026-10-25 by the user against the real Ravon on the dev laptop, not the shop PC: calls transcribed fine, and a call copied with Copy for ChatGPT and pasted into ChatGPT worked as is, with the default research prompt.)
 
 ## Workflow follow-up
 
