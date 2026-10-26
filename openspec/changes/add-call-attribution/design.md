@@ -65,7 +65,7 @@ Mockups (People, and attribution on the Calls and Call screens): see `docs/archi
 - **Why only the opening:** it's where staff say their name, and later mentions ("ask Nolan") are usually about someone, not by them.
 
 ### D3. Voice presence
-- **Profile centroid:** the L2-normalized, duration-weighted mean of its enrolled lines' voiceprints. It's recomputed whenever samples change.
+- **Profile centroid:** the L2-normalized, duration-weighted mean of its enrolled lines' voiceprints. It's computed from the current samples whenever it's needed and never stored, so it can't fall out of step with them (for example when a re-transcribed call takes its enrolled lines with it).
 - **When a profile is usable:** enrolled lines from 3 or more distinct calls, totaling 30 or more seconds. These numbers are provisional; calibration (D9) may change both.
 - **Line score:** the cosine similarity between a line's voiceprint and a usable centroid.
 - **Presence score** of a call for a profile:
@@ -83,7 +83,7 @@ Implemented exactly as the `call-attribution` "Automatic attribution rules" requ
 ### D5. Enrollment
 - Only the admin enrolls. On a Transcribed call, the logged-in admin sees a tick box per line, ticks lines where only that person talks, and chooses "Enroll as <person>".
 - Lines without a voiceprint can't be ticked, and say why. That covers lines under 1 second and lines from calls transcribed before this change.
-- Enrolling adds `voice_samples` rows, rebuilds the centroid and queues a rematch for that profile. Removing samples on the People screen does the same.
+- Enrolling adds `voice_samples` rows, which changes the centroid, and queues a rematch for that profile. Removing samples on the People screen does the same.
 
 ### D6. When attribution runs
 - After each successful transcription, the job runner calls the rules for that call, in the same transaction that marks it Transcribed.

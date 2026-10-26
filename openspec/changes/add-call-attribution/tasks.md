@@ -10,11 +10,11 @@
 
 ## 2. Data model, profiles and enrollment
 
-- [ ] 2.1 Write the migration for profiles, name variants, voice samples and attributions (design D1, with the cascade rules), and verify a migration test from the database after 1.2
-- [ ] 2.2 Implement profiles and name variants (create, edit, delete with cascades), and verify tests for the "People profiles" scenarios
-- [ ] 2.3 Implement voice samples and centroids (add or remove a call's enrolled lines, refuse lines without a voiceprint, centroid rebuild, the 3-call / 30-second usability rule), and verify tests for the "Voice enrollment from transcript lines" and "Usable voice profile" scenarios
-- [ ] 2.4 Implement voice presence scoring (design D3) as a pure function, and verify table-driven tests including "Too little matching speech" and calls with too little voiceprinted speech
-- [ ] 2.5 Add the `calibrate` command (design D9), and verify that it reads only stored data for a fixture profile and calls, makes no Ravon requests, and writes no transcript text or audio into the report
+- [x] 2.1 Write the migration for profiles, name variants, voice samples and attributions (design D1, with the cascade rules), and verify a migration test from the database after 1.2
+- [x] 2.2 Implement profiles and name variants (create, edit, delete with cascades), and verify tests for the "People profiles" scenarios
+- [x] 2.3 Implement voice samples and centroids (add or remove a call's enrolled lines, refuse lines without a voiceprint, centroid rebuild, the 3-call / 30-second usability rule), and verify tests for the "Voice enrollment from transcript lines" and "Usable voice profile" scenarios
+- [x] 2.4 Implement voice presence scoring (design D3) as a pure function, and verify table-driven tests including "Too little matching speech" and calls with too little voiceprinted speech
+- [x] 2.5 Add the `calibrate` command (design D9), and verify that it reads only stored data for a fixture profile and calls, makes no Ravon requests, and writes no transcript text or audio into the report
 
 ## 3. Calibration on real calls
 

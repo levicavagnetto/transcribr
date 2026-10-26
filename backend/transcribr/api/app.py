@@ -35,7 +35,7 @@ def _error(status: int, code: str, message: str, **extra: object) -> JSONRespons
 def _log_setup_code(code: str) -> None:
     log.warning("=" * 60)
     log.warning("No admin account yet. Admin setup code: %s", code)
-    log.warning("Open the web app, follow the footer Admin link, and enter this code.")
+    log.warning("Open the web app, follow the Admin link in the top bar, and enter this code.")
     log.warning("=" * 60)
 
 
