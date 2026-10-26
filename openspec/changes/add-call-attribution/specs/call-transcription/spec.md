@@ -37,10 +37,10 @@ Processing SHALL produce a transcript of time-stamped segments (lines). Segments
 ### Requirement: Per-line voiceprints
 For each transcript line of at least 1 second, processing SHALL store a voiceprint of that line's audio. No audio SHALL be stored. Voiceprints SHALL never be returned by any API.
 
-#### Scenario: Voiceprints stored without audio
+#### Scenario: Fingerprints stored without audio
 - **WHEN** a call is Transcribed
 - **THEN** each line of 1 second or more has a stored voiceprint, shorter lines have none, and no audio of the call is stored
 
-#### Scenario: API never exposes voiceprints
+#### Scenario: API never exposes fingerprints
 - **WHEN** any API endpoint returns a call or its transcript
 - **THEN** the response contains no voiceprint data
