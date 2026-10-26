@@ -6,7 +6,7 @@ See `proposal.md` for the motivation and `specs/` for the required behavior. Thi
 - the SQLite schema, which already has calls, transcripts with segments and word timestamps, a transcript FTS5 index and speakers
 - the guarded Ravon client
 - the FastAPI app, with GET-pure reads and OpenAPI
-- the MUI theme and app shell, including the status banner, the footer Admin link and the 10-second refetch
+- the MUI theme and app shell, including the status banner, the top-bar Admin link and the 10-second refetch
 - the admin Settings screen, built to take more sections
 
 Mockups: the design canvas at https://claude.ai/artifact/9WxKCnhBUmpG7UZKVH4MD1 (Calls, Call detail, other call states, the research prompt setting, and Calls in the dark theme), reviewed by the user on 2026-10-25. D6 records its layout.

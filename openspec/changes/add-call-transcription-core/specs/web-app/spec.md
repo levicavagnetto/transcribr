@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The web app shell every Transcribr screen lives in: served on the shop network without a login, themed, showing the instance's health, with the admin area reachable from the footer and a REST API every screen and future client uses.
+The web app shell every Transcribr screen lives in: served on the shop network without a login, themed, showing the instance's health, with the admin area reachable from a small link in the top bar and a REST API every screen and future client uses.
 
 ## ADDED Requirements
 
@@ -15,7 +15,7 @@ The web app SHALL be served by the instance on the shop network and work in curr
 
 #### Scenario: Admin screens not in the normal navigation
 - **WHEN** a staff member uses the app without the admin login
-- **THEN** the navigation shows no admin screens, and the only way in is a small "Admin" link in the page footer that opens `/admin`
+- **THEN** the navigation shows no admin screens, and the only way in is a small "Admin" link in the top bar that opens `/admin`, which stays on screen however long the page is
 
 ### Requirement: Collection status on the home page
 The home page SHALL show what the instance is collecting: the time of the last successful check, and how many calls were listed and transcribed today, Waiting, and Failed.

@@ -7,7 +7,6 @@ import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
-import Link from "@mui/material/Link";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Toolbar from "@mui/material/Toolbar";
@@ -115,6 +114,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Typography>
           {inAdmin ? <AdminBar /> : <Box sx={{ flexGrow: 1 }} />}
           {!inAdmin && <WorkerChip />}
+          {!inAdmin && (
+            <Button color="inherit" size="small" component={RouterLink} to="/admin" startIcon={<AdminPanelSettingsIcon />}>
+              Admin
+            </Button>
+          )}
           <ThemeMenu />
         </Toolbar>
       </AppBar>
@@ -137,12 +141,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         }}
       >
         <span>Transcribr</span>
-        {!inAdmin && (
-          <Link component={RouterLink} to="/admin" color="inherit" sx={{ display: "inline-flex", gap: 0.5 }}>
-            <AdminPanelSettingsIcon sx={{ fontSize: 16 }} />
-            Admin
-          </Link>
-        )}
       </Box>
     </Box>
   );

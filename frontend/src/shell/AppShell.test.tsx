@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import type { AuthStateName } from "../api/hooks";
@@ -15,10 +15,13 @@ function serve(state: AuthStateName) {
 }
 
 describe("the app shell", () => {
-  it("shows a small Admin link in the footer and the worker state", async () => {
+  it("shows a small Admin link in the top bar and the worker state", async () => {
     serve("login_required");
     renderApp("/");
-    expect(await screen.findByRole("link", { name: "Admin" })).toHaveAttribute("href", "/admin");
+    const bar = within(await screen.findByRole("banner"));
+    // In the top bar, not the footer, so it stays reachable above a long call list.
+    expect(await bar.findByRole("link", { name: "Admin" })).toHaveAttribute("href", "/admin");
+    expect(within(screen.getByRole("contentinfo")).queryByRole("link", { name: "Admin" })).toBeNull();
     expect(await screen.findByText(/^2 waiting · 1 failed in 24 h · checked \d{1,2}:\d{2}/)).toBeInTheDocument();
   });
 

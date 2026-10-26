@@ -228,7 +228,7 @@ This is a new system, so there's no data to migrate.
 1. Copy the project folder to the host.
 2. Copy `.env.example` to `.env` and fill it in.
 3. Run `docker compose up -d --build`.
-4. Open the web app, follow the footer Admin link, create the admin with the setup code from `docker compose logs web`, and choose the store queues.
+4. Open the web app, follow the Admin link in the top bar, create the admin with the setup code from `docker compose logs web`, and choose the store queues.
 
 **Rollback:**
 1. Run `docker compose down`.

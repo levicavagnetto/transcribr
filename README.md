@@ -60,7 +60,7 @@ itself has to start with the computer:
 
 ## First setup
 
-1. Click the small **Admin** link in the footer of the web app.
+1. Click the small **Admin** link in the top bar of the web app.
 
 2. Enter the one-time setup code. The web service prints it in its log:
 
