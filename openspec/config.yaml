@@ -17,12 +17,15 @@ context: |
     The MCP server is a thin read-only client of the REST API with no DB, Ravon or
     credential access.
   - Ravon's user/extension filters do not identify the service writer (inbound calls land
-    on the main store line). Attribution comes from the transcript (name said in the call)
-    and voiceprints, stored per call as person + method + confidence.
+    on the main store line). Attribution is per call, never per line: it comes from the
+    transcript (name said in the call) and voice presence (per-line voiceprints scored
+    against staff voice profiles), stored per call as person + method + confidence.
+    Transcripts have no speaker labels (diarization was dropped after live testing).
   - Profiles (people, name variants, voiceprints) and all settings are configured per
     instance in the UI and stored in /data. Nothing person- or store-specific in code.
   - Visibility: everyone on the shop network sees all calls and can use every call-screen
-    action (including "Speaker N is <person>") without logging in; profiles are filters.
+    action (claim, reject, confirm) without logging in; profiles are filters. Only the
+    admin enrolls voices, by ticking transcript lines on a call.
     People and Settings live under /admin behind one admin login, created on first visit
     with a one-time setup code from the server log. The server enforces admin auth on
     every /api/v1/admin route; hiding links is not protection.
@@ -41,7 +44,8 @@ context: |
     add-call-browser (call list, detail, Listen, Copy for ChatGPT),
     add-call-attribution (people, name/voice matching, People screen),
     add-mcp-server (read-only MCP for ChatGPT via secure tunnel + OAuth).
-    Later changes add requirements to earlier capabilities; they don't rewrite them.
+    Later changes mostly add requirements to earlier capabilities; when real use shows an
+    earlier requirement is wrong, a later change modifies it through its delta specs.
 
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.

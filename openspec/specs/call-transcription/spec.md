@@ -1,7 +1,7 @@
 # call-transcription Specification
 
 ## Purpose
-Turns a listed call's recording into a speaker-labeled transcript with per-speaker voice fingerprints, reliably and in the background, for both automatic and user-requested jobs.
+Turns a listed call's recording into a timestamped transcript with per-line voiceprints, reliably and in the background, for both automatic and user-requested jobs.
 
 ## Requirements
 
