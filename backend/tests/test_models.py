@@ -72,7 +72,6 @@ def test_the_real_manifest_pins_revisions_and_hashes() -> None:
         "faster-whisper-small.en/model.bin",
         "faster-whisper-small.en/tokenizer.json",
         "faster-whisper-small.en/vocabulary.txt",
-        "sherpa-onnx/segmentation.onnx",
         "sherpa-onnx/embedding.onnx",
     }
     for f in MANIFEST:

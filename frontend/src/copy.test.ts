@@ -11,9 +11,9 @@ describe("the text copied for ChatGPT", () => {
         "",
         "Call: Thu Oct 22 2026, 11:41, 4 min 37 s",
         "",
-        "[0:00] Speaker 1: Thanks for calling, front counter.",
-        "[0:04] Speaker 2: I need tires for my 2019 Silverado.",
-        "[1:05] Speaker 2: About nine hundred for all four.",
+        "[0:00] Thanks for calling, front counter.",
+        "[0:04] I need tires for my 2019 Silverado.",
+        "[1:05] About nine hundred for all four.",
       ].join("\n"),
     );
   });

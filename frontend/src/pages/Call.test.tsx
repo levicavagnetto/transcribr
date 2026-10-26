@@ -41,7 +41,7 @@ afterEach(() => {
 });
 
 describe("a transcribed call", () => {
-  it("shows its details and the speaker-labelled transcript", async () => {
+  it("shows its details and the transcript as timestamped lines without speakers", async () => {
     serve();
     renderApp(`/calls/${ID}`);
     expect(await screen.findByRole("heading", { name: "Today 11:41 · 4 min 37 s" })).toBeInTheDocument();
@@ -56,7 +56,8 @@ describe("a transcribed call", () => {
     const lines = within(await screen.findByRole("region", { name: "Transcript" }));
     expect(lines.getByText("I need tires for my 2019 Silverado.")).toBeInTheDocument();
     expect(lines.getByText("1:05")).toBeInTheDocument();
-    expect(lines.getAllByText("Speaker 2")).toHaveLength(2);
+    expect(lines.getByText("3 lines · small.en")).toBeInTheDocument();
+    expect(lines.queryByText(/Speaker \d/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "All calls" })).toHaveAttribute("href", "/");
   });
 

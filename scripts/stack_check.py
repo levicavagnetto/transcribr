@@ -362,7 +362,7 @@ def find_and_read_a_call(stack: Stack) -> None:
         raise StepFailed(f"number search found {[c['id'] for c in by_number]}")
     print(f"{phrase!r} found it at {match['passage']['at_s']:.0f} s; 555-0142 found it alone")
 
-    step("the call page's details and speaker-labelled transcript")
+    step("the call page's details and timestamped transcript, without speakers")
     detail = stack.web.get(f"/api/v1/calls/{AUTO_CALL}").json()
     if (detail["state"], detail["auto_queued"], detail["has_transcript"]) != (
         "transcribed",
@@ -370,22 +370,27 @@ def find_and_read_a_call(stack: Stack) -> None:
         True,
     ):
         raise StepFailed(f"call detail: {detail}")
-    labels = {s["speaker"] for s in transcript["segments"]}
-    if not transcript["segments"] or not all(re.fullmatch(r"Speaker \d+", s) for s in labels):
+    segments = transcript["segments"]
+    if (
+        not segments
+        or "speakers" in transcript
+        or any("speaker" in s or "voiceprint" in s for s in segments)
+        or not any(s["has_voiceprint"] for s in segments)
+    ):
         raise StepFailed(f"transcript: {transcript}")
-    print(f"{len(transcript['segments'])} lines from {sorted(labels)}")
+    with_voiceprint = sum(s["has_voiceprint"] for s in segments)
+    print(f"{len(segments)} lines, {with_voiceprint} with a voiceprint, no speaker labels")
 
     step("Copy for ChatGPT gets the prompt, details and lines it formats")
     prompt = stack.web.get("/api/v1/research-prompt").json()["prompt"]
     lines = [
-        f"[{int(s['start_s']) // 60}:{int(s['start_s']) % 60:02d}] {s['speaker']}: {s['text']}"
-        for s in transcript["segments"]
+        f"[{int(s['start_s']) // 60}:{int(s['start_s']) % 60:02d}] {s['text']}" for s in segments
     ]
     text = f"{prompt}\n\nCall: {detail['start_local']}\n\n" + "\n".join(lines)
-    pattern = r"Below is a phone call.+\n\nCall: .+\n\n(\[\d+:\d\d\] Speaker \d+: .+\n?)+"
+    pattern = r"Below is a phone call.+\n\nCall: .+\n\n(\[\d+:\d\d\] .+\n?)+"
     if not re.fullmatch(pattern, text, flags=re.DOTALL):
         raise StepFailed(f"the copy text doesn't have the expected shape:\n{text}")
-    print("prompt, call line and [m:ss] Speaker N lines all present")
+    print("prompt, call line and [m:ss] lines all present")
 
     step("Listen plays the recording through the server")
     status, content_type, size = stack.listen_from_worker_namespace(AUTO_CALL)

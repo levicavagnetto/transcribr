@@ -23,8 +23,6 @@ import { StateChip } from "../calls/StateChip";
 import { clockTime, fullDate, longLength, mss, startLabel } from "../format";
 import { monoFontFamily } from "../theme";
 
-const SPEAKER_COLOURS = ["primary.main", "secondary.main", "success.main", "warning.main"];
-
 function Detail({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Box>
@@ -106,16 +104,12 @@ function Listen({ call }: { call: CallDetail }) {
 }
 
 function TranscriptView({ transcript }: { transcript: Transcript }) {
-  const colour = (speaker: string) => {
-    const at = transcript.speakers.indexOf(speaker);
-    return SPEAKER_COLOURS[(at < 0 ? 0 : at) % SPEAKER_COLOURS.length];
-  };
   return (
     <Paper component="section" aria-label="Transcript" sx={{ p: { xs: 2, md: 3 } }}>
       <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: 1, mb: 1 }}>
         <Typography variant="h2">Transcript</Typography>
         <Typography variant="body2" color="text.secondary">
-          {transcript.speakers.length} {transcript.speakers.length === 1 ? "speaker" : "speakers"} · {transcript.model}
+          {transcript.segments.length} {transcript.segments.length === 1 ? "line" : "lines"} · {transcript.model}
         </Typography>
       </Box>
       {transcript.segments.map((segment) => (
@@ -123,7 +117,7 @@ function TranscriptView({ transcript }: { transcript: Transcript }) {
           key={segment.idx}
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "48px minmax(0, 1fr)", sm: "56px 110px minmax(0, 1fr)" },
+            gridTemplateColumns: { xs: "48px minmax(0, 1fr)", sm: "56px minmax(0, 1fr)" },
             columnGap: 1.5,
             py: 1,
             borderTop: 1,
@@ -134,13 +128,7 @@ function TranscriptView({ transcript }: { transcript: Transcript }) {
           <Typography component="span" variant="body2" color="text.secondary" sx={{ fontFamily: monoFontFamily, pt: 0.25 }}>
             {mss(segment.start_s)}
           </Typography>
-          <Typography component="span" sx={{ fontWeight: 500, display: "inline-flex", gap: 0.75, alignItems: "flex-start" }}>
-            <Box component="span" aria-hidden sx={{ width: 10, height: 10, borderRadius: "50%", mt: 0.75, flexShrink: 0, bgcolor: colour(segment.speaker) }} />
-            {segment.speaker}
-          </Typography>
-          <Typography component="span" sx={{ gridColumn: { xs: "1 / -1", sm: "auto" } }}>
-            {segment.text}
-          </Typography>
+          <Typography component="span">{segment.text}</Typography>
         </Box>
       ))}
     </Paper>

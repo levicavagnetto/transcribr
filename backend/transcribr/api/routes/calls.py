@@ -1,6 +1,6 @@
 """Open call endpoints: the call list and search, one call, its transcript, and call actions.
 
-The response models carry no voice fingerprint field, so fingerprints cannot leak by accident.
+The response models carry no voiceprint field, so voiceprints cannot leak by accident.
 """
 
 from datetime import date
@@ -70,8 +70,8 @@ class Segment(BaseModel):
     idx: int
     start_s: float
     end_s: float
-    speaker: str
     text: str
+    has_voiceprint: bool  # whether the admin can enroll this line for a person's voice
 
 
 class Transcript(BaseModel):
@@ -80,7 +80,6 @@ class Transcript(BaseModel):
     model: str
     transcribed_at: str
     no_speech: bool
-    speakers: list[str]
     segments: list[Segment]
 
 

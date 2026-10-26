@@ -2,11 +2,11 @@
 
 ## 1. Remove speaker labels
 
-- [ ] 1.1 Remove speaker separation from the pipeline (design D0): drop the segmentation model, the clustering and its threshold from the code and the image; keep the embedding model and compute a voiceprint for each line of 1 second or more (design D1); verify unit tests for the line-length rule and a `model`-marked test that a fixture call gets one voiceprint per qualifying line and no speaker labels
-- [ ] 1.2 Write the migration that drops `speakers` and the segment speaker column and adds the segment voiceprint column, and verify a migration test from a database created by the earlier changes' migrations, including the pre-migration backup and that existing transcript text and search still work
-- [ ] 1.3 Remove `speaker` and `speakers` from the transcript API and add the per-segment `has_voiceprint` flag (design D7); verify tests for the "Timestamped transcript" and "Per-line voiceprints" scenarios, and that no voiceprint ever appears in a response
-- [ ] 1.4 Remove speaker labels from the Call view and Copy for ChatGPT (`[m:ss] text` lines), and verify the updated component and copied-text tests for the modified "Call detail" and "Copy for ChatGPT" scenarios
-- [ ] 1.5 Update the compose smoke test and `docs/architecture.md` for transcripts without speakers, and verify that the `check` script passes
+- [x] 1.1 Remove speaker separation from the pipeline (design D0): drop the segmentation model, the clustering and its threshold from the code and the image; keep the embedding model and compute a voiceprint for each line of 1 second or more (design D1); verify unit tests for the line-length rule and a `model`-marked test that a fixture call gets one voiceprint per qualifying line and no speaker labels
+- [x] 1.2 Write the migration that drops `speakers` and the segment speaker column and adds the segment voiceprint column, and verify a migration test from a database created by the earlier changes' migrations, including the pre-migration backup and that existing transcript text and search still work
+- [x] 1.3 Remove `speaker` and `speakers` from the transcript API and add the per-segment `has_voiceprint` flag (design D7); verify tests for the "Timestamped transcript" and "Per-line voiceprints" scenarios, and that no voiceprint ever appears in a response
+- [x] 1.4 Remove speaker labels from the Call view and Copy for ChatGPT (`[m:ss] text` lines), and verify the updated component and copied-text tests for the modified "Call detail" and "Copy for ChatGPT" scenarios
+- [x] 1.5 Update the compose smoke test and `docs/architecture.md` for transcripts without speakers, and verify that the `check` script passes
 
 ## 2. Data model, profiles and enrollment
 

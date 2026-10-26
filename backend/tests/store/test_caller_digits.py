@@ -44,7 +44,7 @@ def test_the_migration_fills_in_existing_calls(tmp_path: Path) -> None:
     migrate(db)
 
     conn = connect(db)
-    assert schema_version(conn) == 3
+    assert schema_version(conn) == len(list(MIGRATIONS_DIR.glob("*.sql")))
     rows = conn.execute("SELECT id, caller_digits FROM calls ORDER BY id").fetchall()
     assert [tuple(r) for r in rows] == [(90000001, "4055550142"), (90000002, "")]
 

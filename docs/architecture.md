@@ -16,9 +16,9 @@ flowchart LR
         RC["Ravon client<br/>login, search, download<br/>read-only allow list"]
         PO["Poller<br/>every 1–2 min<br/>records last successful run"]
         Q[("Job queue<br/>SQLite")]
-        PR["Processor<br/>1 fetch audio (memory only)<br/>2 transcribe (faster-whisper)<br/>3 split speakers (sherpa-onnx)<br/>4 voice fingerprints"]
-        MA["Matcher<br/>name in opening lines<br/>+ voiceprint similarity<br/>→ person, method, confidence"]
-        DB[("SQLite<br/>calls, transcripts + FTS,<br/>speakers, profiles, settings")]
+        PR["Processor<br/>1 fetch audio (memory only)<br/>2 transcribe (faster-whisper)<br/>3 voiceprint each line (sherpa-onnx)"]
+        MA["Matcher (per call)<br/>name in opening lines<br/>+ voice presence<br/>→ person, method, confidence"]
+        DB[("SQLite<br/>calls, transcripts + FTS,<br/>line voiceprints, profiles, settings")]
         API["FastAPI<br/>REST API"]
         UI["React UI<br/>calls, filters, transcript,<br/>Copy for ChatGPT, profiles, settings"]
     end
@@ -58,9 +58,9 @@ flowchart LR
 | Ravon client | Logs in, searches recordings, downloads MP3s into memory. Every request passes a read-only allow list. |
 | Poller | Searches recent calls every 1–2 minutes and lists new ones. Auto-queues a call only if it ended while the server was running; calls missed while it was off are listed as "Not transcribed". |
 | Job queue | SQLite table; survives restarts. Sources: auto (poller) and the Transcribe button. Retries with backoff, then Failed with a reason. |
-| Processor | One job at a time: fetch audio, transcribe, split speakers, compute a voice fingerprint per speaker, discard audio. |
-| Matcher | Assigns a call to a profile by name in the opening lines and/or voiceprint similarity. Stores person, method and confidence; uncertain calls are "Maybe". |
-| SQLite | All state: calls (every listed call), transcripts with full-text search, speaker fingerprints, profiles, settings. |
+| Processor | One job at a time: fetch audio, transcribe into timestamped lines, compute a voiceprint for each line of 1 second or more, discard audio. Lines are not assigned to speakers. |
+| Matcher | Assigns a call to a profile by name in the opening lines and/or voice presence (enough seconds of the call's lines matching the profile's voice). It never says who said which line. Stores person, method and confidence; uncertain calls are "Maybe". |
+| SQLite | All state: calls (every listed call), transcripts with full-text search, line voiceprints, profiles, settings. |
 | FastAPI + React UI | One open view of all calls with per-profile, Unassigned and Maybe filters; transcript view with Copy for ChatGPT; profile setup; settings. |
 | MCP server (phase 2) | A separate, thin client of the transcribr REST API, like the UI. Exposes read-only tools and has no access to Ravon, the database or credentials. Only transcribr talks to Ravon. Reached by ChatGPT through a secure tunnel with OAuth. |
 

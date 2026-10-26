@@ -1,4 +1,4 @@
-"""The speech and speaker models: pinned downloads, checked by size and SHA-256.
+"""The speech and speaker-embedding models: pinned downloads, checked by size and SHA-256.
 
 The Docker image runs `transcribr fetch-models` at build time, so a running instance never
 downloads anything. For development, run it once into `backend/models` (git-ignored).
@@ -16,16 +16,11 @@ log = logging.getLogger(__name__)
 
 WHISPER_DIR = "faster-whisper-small.en"
 WHISPER_MODEL_NAME = "small.en"
-SEGMENTATION_MODEL = "sherpa-onnx/segmentation.onnx"
 EMBEDDING_MODEL = "sherpa-onnx/embedding.onnx"
 
 _WHISPER = (
     "https://huggingface.co/Systran/faster-whisper-small.en/resolve/"
     "d1d751a5f8271d482d14ca55d9e2deeebbae577f"
-)
-_SEGMENTATION = (
-    "https://huggingface.co/csukuangfj/sherpa-onnx-pyannote-segmentation-3-0/resolve/"
-    "9403a6902bb58e3d5ae8c7e77c3422de279db2e0/model.onnx"
 )
 _EMBEDDING = (
     "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/"
@@ -69,12 +64,6 @@ MANIFEST: tuple[ModelFile, ...] = (
         f"{_WHISPER}/vocabulary.txt",
         422309,
         "ff77588746d3a2595d32ab5b69ffd7b95ce2441ac57533cb66fc3eb575a115cf",
-    ),
-    ModelFile(
-        SEGMENTATION_MODEL,
-        _SEGMENTATION,
-        5992913,
-        "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079",
     ),
     ModelFile(
         EMBEDDING_MODEL,

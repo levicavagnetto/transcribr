@@ -112,8 +112,8 @@ def fill(conn: sqlite3.Connection) -> None:
         " VALUES (1, 'en', 'small.en', 't')"
     )
     conn.execute(
-        "INSERT INTO segments (call_id, idx, start_s, end_s, speaker, text)"
-        " VALUES (1, 0, 0, 2.5, 'Speaker 1', 'thanks for calling about the tires')"
+        "INSERT INTO segments (call_id, idx, start_s, end_s, text)"
+        " VALUES (1, 0, 0, 2.5, 'thanks for calling about the tires')"
     )
     Settings(conn).set(STORE_QUEUES, ["tireProz-salescustserv"])
     State(conn).set(LAST_POLL_OK, to_iso(utcnow()))

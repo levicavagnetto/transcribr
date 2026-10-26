@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Protocol
 
 from transcribr.pipeline.audio import AudioError, decode
-from transcribr.pipeline.diarize import Diarizer, LabeledSegment, SpeakerInfo
 from transcribr.pipeline.transcribe import Transcriber
+from transcribr.pipeline.voiceprint import Line, Voiceprinter
 from transcribr.ravon.client import (
     LoginRejected,
     NoCredentials,
@@ -33,8 +33,7 @@ MAX_REASON = 500
 class PipelineResult:
     language: str
     model: str
-    segments: tuple[LabeledSegment, ...]
-    speakers: dict[str, SpeakerInfo]
+    segments: tuple[Line, ...]
 
     @property
     def no_speech(self) -> bool:
@@ -46,13 +45,13 @@ class Pipeline(Protocol):
 
 
 class ModelPipeline:
-    """Decode, transcribe, then separate speakers. Models load on first use and stay loaded."""
+    """Decode, transcribe, then voiceprint each line. Models load on first use and stay loaded."""
 
     def __init__(self, models_dir: Path, *, hotwords: Callable[[], Sequence[str]] = tuple) -> None:
         self._models_dir = models_dir
         self._hotwords = hotwords
         self._transcriber: Transcriber | None = None
-        self._diarizer: Diarizer | None = None
+        self._voiceprinter: Voiceprinter | None = None
 
     def run(self, audio: bytes) -> PipelineResult:
         samples = decode(audio)
@@ -60,13 +59,11 @@ class ModelPipeline:
             self._transcriber = Transcriber(self._models_dir)
         transcript = self._transcriber.transcribe(samples, hotwords=self._hotwords())
         if transcript.no_speech:
-            return PipelineResult(transcript.language, transcript.model, (), {})
-        if self._diarizer is None:
-            self._diarizer = Diarizer(self._models_dir)
-        diarized = self._diarizer.diarize(samples, transcript)
-        return PipelineResult(
-            transcript.language, transcript.model, diarized.segments, diarized.speakers
-        )
+            return PipelineResult(transcript.language, transcript.model, ())
+        if self._voiceprinter is None:
+            self._voiceprinter = Voiceprinter(self._models_dir)
+        lines = self._voiceprinter.lines(samples, transcript.segments)
+        return PipelineResult(transcript.language, transcript.model, lines)
 
 
 @dataclass(frozen=True)
@@ -170,7 +167,6 @@ class JobRunner:
         call_id = claimed.call_id
         with transaction(self._conn):
             self._conn.execute("DELETE FROM transcripts WHERE call_id = ?", (call_id,))
-            self._conn.execute("DELETE FROM speakers WHERE call_id = ?", (call_id,))
             self._conn.execute(
                 "INSERT INTO transcripts (call_id, language, model, transcribed_at, no_speech)"
                 " VALUES (?, ?, ?, ?, ?)",
@@ -183,7 +179,7 @@ class JobRunner:
                 ),
             )
             self._conn.executemany(
-                "INSERT INTO segments (call_id, idx, start_s, end_s, speaker, text, words)"
+                "INSERT INTO segments (call_id, idx, start_s, end_s, text, words, voiceprint)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?)",
                 [
                     (
@@ -191,24 +187,11 @@ class JobRunner:
                         index,
                         s.start,
                         s.end,
-                        s.speaker,
                         s.text,
                         json.dumps([[w.start, w.end, w.text] for w in s.words]),
+                        None if s.voiceprint is None else s.voiceprint.tobytes(),
                     )
                     for index, s in enumerate(result.segments)
-                ],
-            )
-            self._conn.executemany(
-                "INSERT INTO speakers (call_id, label, speech_seconds, fingerprint)"
-                " VALUES (?, ?, ?, ?)",
-                [
-                    (
-                        call_id,
-                        info.label,
-                        info.seconds,
-                        None if info.fingerprint is None else info.fingerprint.tobytes(),
-                    )
-                    for info in result.speakers.values()
                 ],
             )
             self._conn.execute(

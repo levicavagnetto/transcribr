@@ -10,9 +10,9 @@ import pytest
 from tests.clock import FakeClock
 from tests.fake_ravon.app import FakeCall, FakeRavon
 from transcribr.pipeline.audio import AudioError
-from transcribr.pipeline.diarize import LabeledSegment, SpeakerInfo
 from transcribr.pipeline.process import JobRunner, PipelineResult
 from transcribr.pipeline.transcribe import Word
+from transcribr.pipeline.voiceprint import Line
 from transcribr.ravon.client import RavonClient
 from transcribr.ravon.parse import Recording
 from transcribr.store.calls import add_listed, is_listed, request_transcription
@@ -20,11 +20,11 @@ from transcribr.store.db import connect
 from transcribr.store.migrate import migrate
 
 CALL = 26541125
-FINGERPRINT = np.full(256, 1 / 16, dtype=np.float32)
+VOICEPRINT = np.full(256, 1 / 16, dtype=np.float32)
 
 
 class StandInPipeline:
-    """Returns a fixed two-speaker result; can be told to fail, and records call states seen."""
+    """Returns a fixed two-line result; can be told to fail, and records call states seen."""
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
@@ -41,16 +41,12 @@ class StandInPipeline:
         if self.fail_next:
             raise self.fail_next.pop(0)
         if self.no_speech:
-            return PipelineResult("en", "small.en", (), {})
+            return PipelineResult("en", "small.en", ())
         segments = (
-            LabeledSegment(0.0, 3.5, "Speaker 1", "this is Nolan", (Word(0.0, 1.0, "this"),)),
-            LabeledSegment(4.0, 8.0, "Speaker 2", "a lift kit", (Word(4.0, 5.0, "a"),)),
+            Line(0.0, 3.5, "this is Nolan", (Word(0.0, 1.0, "this"),), VOICEPRINT),
+            Line(4.0, 4.8, "a lift kit", (Word(4.0, 4.8, "a"),), None),
         )
-        speakers = {
-            "Speaker 1": SpeakerInfo("Speaker 1", 3.5, FINGERPRINT),
-            "Speaker 2": SpeakerInfo("Speaker 2", 1.2, None),
-        }
-        return PipelineResult("en", "small.en", segments, speakers)
+        return PipelineResult("en", "small.en", segments)
 
 
 class Rig:
@@ -111,7 +107,7 @@ def test_waiting_goes_to_processing_then_transcribed(rig: Rig) -> None:
     assert not rig.runner.process_one(rig.conn)  # nothing left
 
 
-def test_the_transcript_and_speakers_are_stored(rig: Rig) -> None:
+def test_the_transcript_and_line_voiceprints_are_stored(rig: Rig) -> None:
     rig.runner.process_one(rig.conn)
     transcript = rig.conn.execute("SELECT * FROM transcripts").fetchone()
     assert (transcript["language"], transcript["model"], transcript["no_speech"]) == (
@@ -119,17 +115,13 @@ def test_the_transcript_and_speakers_are_stored(rig: Rig) -> None:
         "small.en",
         0,
     )
-    segments = rig.conn.execute("SELECT speaker, text, words FROM segments ORDER BY idx").fetchall()
-    assert [(s[0], s[1]) for s in segments] == [
-        ("Speaker 1", "this is Nolan"),
-        ("Speaker 2", "a lift kit"),
-    ]
-    assert segments[0][2] == '[[0.0, 1.0, "this"]]'
-    speakers = dict(
-        (r[0], r[1]) for r in rig.conn.execute("SELECT label, fingerprint FROM speakers")
-    )
-    assert np.frombuffer(speakers["Speaker 1"], dtype=np.float32).tolist() == FINGERPRINT.tolist()
-    assert speakers["Speaker 2"] is None
+    segments = rig.conn.execute(
+        "SELECT text, words, voiceprint FROM segments ORDER BY idx"
+    ).fetchall()
+    assert [s[0] for s in segments] == ["this is Nolan", "a lift kit"]
+    assert segments[0][1] == '[[0.0, 1.0, "this"]]'
+    assert np.frombuffer(segments[0][2], dtype=np.float32).tolist() == VOICEPRINT.tolist()
+    assert segments[1][2] is None  # under a second
     hits = rig.conn.execute(
         "SELECT count(*) FROM segments_fts WHERE segments_fts MATCH '\"lift kit\"'"
     ).fetchone()[0]
@@ -270,8 +262,11 @@ def test_end_to_end_with_the_real_models(rig: Rig) -> None:
     runner = JobRunner(rig.conn, rig.make_client(), ModelPipeline(MODELS), now=rig.clock.utcnow)
     assert runner.process_one()
     assert rig.state() == ("transcribed", None)
-    lines = rig.conn.execute("SELECT speaker, text FROM segments ORDER BY idx").fetchall()
-    assert {r[0] for r in lines} == {"Speaker 1", "Speaker 2"}
-    assert "Nolan" in lines[0][1]
-    fingerprints = rig.conn.execute("SELECT count(*) FROM speakers WHERE fingerprint IS NOT NULL")
-    assert fingerprints.fetchone()[0] == 2
+    lines = rig.conn.execute(
+        "SELECT start_s, end_s, text, voiceprint FROM segments ORDER BY idx"
+    ).fetchall()
+    assert "Nolan" in lines[0][2]
+    for start, end, _, voiceprint in lines:
+        assert (voiceprint is not None) == (end - start >= 1.0)
+        if voiceprint is not None:
+            assert len(voiceprint) == 256 * 4  # float32

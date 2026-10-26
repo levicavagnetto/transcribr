@@ -203,19 +203,13 @@ def transcript(conn: sqlite3.Connection, call_id: int) -> dict[str, Any] | None:
             "idx": r["idx"],
             "start_s": r["start_s"],
             "end_s": r["end_s"],
-            "speaker": r["speaker"],
             "text": r["text"],
+            "has_voiceprint": bool(r["has_voiceprint"]),
         }
         for r in conn.execute(
-            "SELECT idx, start_s, end_s, speaker, text FROM segments"
-            " WHERE call_id = ? ORDER BY idx",
+            "SELECT idx, start_s, end_s, text, voiceprint IS NOT NULL AS has_voiceprint"
+            " FROM segments WHERE call_id = ? ORDER BY idx",
             (call_id,),
-        )
-    ]
-    speakers = [
-        r["label"]
-        for r in conn.execute(
-            "SELECT label FROM speakers WHERE call_id = ? ORDER BY rowid", (call_id,)
         )
     ]
     return {
@@ -224,6 +218,5 @@ def transcript(conn: sqlite3.Connection, call_id: int) -> dict[str, Any] | None:
         "model": head["model"],
         "transcribed_at": head["transcribed_at"],
         "no_speech": bool(head["no_speech"]),
-        "speakers": speakers,
         "segments": segments,
     }

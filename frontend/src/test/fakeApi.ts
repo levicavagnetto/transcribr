@@ -166,11 +166,10 @@ export function transcript(overrides: Partial<Transcript> = {}): Transcript {
     model: "small.en",
     transcribed_at: "2026-10-22T16:47:00Z",
     no_speech: false,
-    speakers: ["Speaker 1", "Speaker 2"],
     segments: [
-      { idx: 0, start_s: 0, end_s: 3.5, speaker: "Speaker 1", text: "Thanks for calling, front counter." },
-      { idx: 1, start_s: 4.2, end_s: 9.8, speaker: "Speaker 2", text: "I need tires for my 2019 Silverado." },
-      { idx: 2, start_s: 65, end_s: 70, speaker: "Speaker 2", text: "About nine hundred for all four." },
+      { idx: 0, start_s: 0, end_s: 3.5, text: "Thanks for calling, front counter.", has_voiceprint: true },
+      { idx: 1, start_s: 4.2, end_s: 9.8, text: "I need tires for my 2019 Silverado.", has_voiceprint: true },
+      { idx: 2, start_s: 65, end_s: 70, text: "About nine hundred for all four.", has_voiceprint: true },
     ],
     ...overrides,
   };

@@ -106,8 +106,8 @@ export interface Segment {
   idx: number;
   start_s: number;
   end_s: number;
-  speaker: string;
   text: string;
+  has_voiceprint: boolean; // whether the admin can enroll this line for a person's voice
 }
 
 export interface Transcript {
@@ -116,7 +116,6 @@ export interface Transcript {
   model: string;
   transcribed_at: string;
   no_speech: boolean;
-  speakers: string[];
   segments: Segment[];
 }
 

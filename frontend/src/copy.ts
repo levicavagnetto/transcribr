@@ -11,7 +11,7 @@ export function chatGptText(
 ): string {
   const header = [`Call: ${fullDate(call.start_local)}, ${startClock(call.start_local)}, ${longLength(call.minutes)}`];
   if (includePhone) header.push(`Caller: ${call.caller_number}`);
-  const lines = segments.map((s) => `[${mss(s.start_s)}] ${s.speaker}: ${s.text}`);
+  const lines = segments.map((s) => `[${mss(s.start_s)}] ${s.text}`);
   return [prompt.trim(), header.join("\n"), lines.join("\n")].join("\n\n");
 }
 
