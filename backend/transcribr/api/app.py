@@ -17,7 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from transcribr.admin import Admins, FailureLimiter
 from transcribr.api.deps import WRITE_HEADER, ApiError
 from transcribr.api.listen import WebRavon
-from transcribr.api.routes import admin, auth, calls, system
+from transcribr.api.routes import admin, auth, calls, people, profiles, system
 from transcribr.config import Config
 from transcribr.store.db import connect
 from transcribr.store.migrate import migrate
@@ -132,7 +132,7 @@ def create_app(
         where = ".".join(str(part) for part in location)
         return _error(422, "invalid_request", f"{where}: {first.get('msg', 'invalid')}")
 
-    for module in (system, calls, auth, admin):
+    for module in (system, calls, people, auth, admin, profiles):
         app.include_router(module.router)
     app.openapi = _openapi_with_write_header(app)  # type: ignore[method-assign]
 

@@ -34,9 +34,9 @@ Done after groups 4 to 6 (decided 2026-10-26): enrollment needs the admin line t
 
 ## 5. API
 
-- [ ] 5.1 Implement the admin profile and enrollment endpoints under `/api/v1/admin/profiles` (design D7), and verify tests for each, the enrollment rejection without an admin session, and the route-walk test from the core change still passing with the new admin routes
-- [ ] 5.2 Implement the open call-action endpoints (claim, reject, confirm), and verify tests for each without an admin session
-- [ ] 5.3 Add the `person`, `maybe` and `unassigned` filters and the `attributions` array to the call list; verify tests for every scenario under "Person filters on the call list" and "Person filter in the call API", and that no voiceprint or centroid ever appears in a response
+- [x] 5.1 Implement the admin profile and enrollment endpoints under `/api/v1/admin/profiles` (design D7), and verify tests for each, the enrollment rejection without an admin session, and the route-walk test from the core change still passing with the new admin routes
+- [x] 5.2 Implement the open call-action endpoints (claim, reject, confirm), and verify tests for each without an admin session
+- [x] 5.3 Add the `person`, `maybe` and `unassigned` filters and the `attributions` array to the call list; verify tests for every scenario under "Person filters on the call list" and "Person filter in the call API", and that no voiceprint or centroid ever appears in a response
 
 ## 6. Screens
 

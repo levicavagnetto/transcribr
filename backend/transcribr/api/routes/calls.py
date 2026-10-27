@@ -10,7 +10,9 @@ from fastapi import APIRouter, Query
 from fastapi.responses import Response
 from pydantic import AwareDatetime, BaseModel
 
-from transcribr.api.deps import ApiError, Db, Now, Ravon
+from transcribr.api.deps import ApiError, Db, Now, Ravon, profile_error
+from transcribr.attribution.matching import Attributions
+from transcribr.attribution.profiles import ProfileError
 from transcribr.ravon.client import LoginRejected, NoCredentials, RavonError
 from transcribr.ravon.guard import ReadOnlyViolation
 from transcribr.settings import TIME_ZONE, Settings
@@ -35,6 +37,18 @@ class Passage(BaseModel):
     parts: list[PassagePart]
 
 
+class Attribution(BaseModel):
+    """A person on the call. The voice score is a number; voiceprints never leave the server."""
+
+    profile_id: int
+    display_name: str
+    status: Literal["confident", "maybe"]
+    method: Literal["name", "voice", "name+voice", "manual"]
+    name_heard: str | None  # the transcript words that matched one of their name variants
+    name_at_s: float | None  # when, in seconds into the recording
+    voice_score: float | None  # the call's voice presence score for them
+
+
 class CallSummary(BaseModel):
     id: int
     queue: str
@@ -46,6 +60,7 @@ class CallSummary(BaseModel):
     state: CallState
     has_transcript: bool
     no_speech: bool
+    attributions: list[Attribution]
 
 
 class CallListItem(CallSummary):
@@ -95,11 +110,34 @@ def list_calls(  # noqa: PLR0913, PLR0917 - one parameter per filter
     end: Annotated[date | None, Query(alias="to", description="Last day, store time")] = None,
     q: Annotated[str | None, Query(description="Words said in the call")] = None,
     number: Annotated[str | None, Query(description="Caller number, any punctuation")] = None,
+    person: Annotated[
+        int | None, Query(description="Profile ID: calls attributed to them, Confident or Maybe")
+    ] = None,
+    maybe: Annotated[
+        bool, Query(description="Only calls with a Maybe attribution (to `person`, if given)")
+    ] = False,
+    unassigned: Annotated[
+        bool, Query(description="Only transcribed calls nobody is attributed to")
+    ] = False,
     cursor: str | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> CallList:
     """Calls newest first, filtered and searched, one page at a time."""
-    where = browse.CallFilter(state=state, since=since, start=start, end=end, text=q, number=number)
+    if unassigned and (person is not None or maybe):
+        raise ApiError(
+            422, "invalid_filter", "Unassigned can't be combined with a person or Maybe filter."
+        )
+    where = browse.CallFilter(
+        state=state,
+        since=since,
+        start=start,
+        end=end,
+        text=q,
+        number=number,
+        person=person,
+        maybe=maybe,
+        unassigned=unassigned,
+    )
     try:
         page = browse.list_calls(
             conn, where, zone=Settings(conn).get(TIME_ZONE), limit=limit, cursor=cursor
@@ -169,6 +207,51 @@ def transcribe(call_id: int, conn: Db, now: Now) -> dict[str, object]:
     queued = request_transcription(conn, call_id, now)
     state = conn.execute("SELECT state FROM calls WHERE id = ?", (call_id,)).fetchone()[0]
     return {"queued": queued, "state": state}
+
+
+class Claim(BaseModel):
+    profile_id: int
+
+
+class CallAttributions(BaseModel):
+    attributions: list[Attribution]
+
+
+def _attributions(conn: Db, call_id: int) -> CallAttributions:
+    found = browse.attributions(conn, [call_id]).get(call_id, [])
+    return CallAttributions.model_validate({"attributions": found})
+
+
+@router.post("/{call_id}/attributions")
+def claim(call_id: int, body: Claim, conn: Db, now: Now) -> CallAttributions:
+    """Mark the call as this person's (Confident, method manual). No login needed."""
+    try:
+        Attributions(conn, now=lambda: now).claim(call_id, body.profile_id)
+    except ProfileError as error:
+        raise profile_error(error) from None
+    return _attributions(conn, call_id)
+
+
+@router.delete("/{call_id}/attributions/{profile_id}")
+def reject(call_id: int, profile_id: int, conn: Db, now: Now) -> CallAttributions:
+    """Mark the call as not this person's; automatic matching won't add them back."""
+    try:
+        Attributions(conn, now=lambda: now).reject(call_id, profile_id)
+    except ProfileError as error:
+        raise profile_error(error) from None
+    return _attributions(conn, call_id)
+
+
+@router.post("/{call_id}/attributions/{profile_id}/confirm")
+def confirm(call_id: int, profile_id: int, conn: Db, now: Now) -> CallAttributions:
+    """Turn a Maybe for this person into Confident (method manual)."""
+    if browse.call_detail(conn, call_id) is None:
+        raise ApiError(404, "call_not_found", f"No call {call_id} is listed.")
+    try:
+        Attributions(conn, now=lambda: now).confirm(call_id, profile_id)
+    except ProfileError as error:
+        raise profile_error(error) from None
+    return _attributions(conn, call_id)
 
 
 @router.post("/load-earlier")

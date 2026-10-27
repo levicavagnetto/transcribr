@@ -31,6 +31,9 @@ class CallFilter:
     end: date | None = None  # last day, inclusive
     text: str | None = None  # words said in the call
     number: str | None = None  # caller number, any punctuation
+    person: int | None = None  # attributed to this profile, Confident or Maybe
+    maybe: bool = False  # has a Maybe attribution (to `person`, when one is given)
+    unassigned: bool = False  # transcribed, and nobody is attributed
 
 
 @dataclass
@@ -118,6 +121,9 @@ def list_calls(
             # A suffix match, so "555-0142" finds "(405) 555-0142".
             conditions.append("c.caller_digits LIKE '%' || ?")
             params.append(digits)
+    people_conditions, people_params = _people_filter(where)
+    conditions.extend(people_conditions)
+    params.extend(people_params)
     if cursor is not None:
         start_utc, call_id = decode_cursor(cursor)
         conditions.append("(c.start_utc, c.id) < (?, ?)")
@@ -146,10 +152,98 @@ def list_calls(
             else None
         )
         page.calls.append(call)
+    people = attributions(conn, [c["id"] for c in page.calls])
+    for call in page.calls:
+        call["attributions"] = people.get(call["id"], [])
     if len(rows) > limit:
         last = rows[limit - 1]
         page.next_cursor = encode_cursor(last["start_utc"], last["id"])
     return page
+
+
+_ATTRIBUTED_TO = (
+    "EXISTS (SELECT 1 FROM attributions a WHERE a.call_id = c.id AND a.profile_id = ?"
+    " AND a.status IN ('confident', 'maybe'))"
+)
+_MAYBE_FOR = (
+    "EXISTS (SELECT 1 FROM attributions a WHERE a.call_id = c.id AND a.profile_id = ?"
+    " AND a.status = 'maybe')"
+)
+_ANY_MAYBE = "EXISTS (SELECT 1 FROM attributions a WHERE a.call_id = c.id AND a.status = 'maybe')"
+
+
+def _people_filter(where: CallFilter) -> tuple[list[str], list[Any]]:
+    """The SQL conditions (fixed fragments) and parameters for the person filters."""
+    conditions: list[str] = []
+    params: list[Any] = []
+    if where.person is not None:
+        conditions.append(_MAYBE_FOR if where.maybe else _ATTRIBUTED_TO)
+        params.append(where.person)
+    elif where.maybe:
+        conditions.append(_ANY_MAYBE)
+    if where.unassigned:
+        conditions.append("c.state = 'transcribed' AND NOT " + _ATTRIBUTED)
+    return conditions, params
+
+
+_ATTRIBUTED = (
+    "EXISTS (SELECT 1 FROM attributions a WHERE a.call_id = c.id"
+    " AND a.status IN ('confident', 'maybe'))"
+)
+
+
+def attributions(conn: sqlite3.Connection, call_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
+    """Each call's Confident and Maybe attributions; rejections are not shown."""
+    found: dict[int, list[dict[str, Any]]] = {}
+    if not call_ids:
+        return found
+    marks = ", ".join("?" for _ in call_ids)
+    for r in conn.execute(
+        "SELECT a.call_id, a.profile_id, p.display_name, a.status, a.method,"  # noqa: S608 - only "?" marks are joined in
+        " a.name_heard, a.name_at_s, a.voice_score"
+        " FROM attributions a JOIN profiles p ON p.id = a.profile_id"
+        f" WHERE a.call_id IN ({marks}) AND a.status IN ('confident', 'maybe')"
+        " ORDER BY a.call_id, a.status, p.display_name COLLATE NOCASE",
+        call_ids,
+    ):
+        found.setdefault(r["call_id"], []).append(
+            {
+                "profile_id": r["profile_id"],
+                "display_name": r["display_name"],
+                "status": r["status"],
+                "method": r["method"],
+                "name_heard": r["name_heard"],
+                "name_at_s": r["name_at_s"],
+                "voice_score": r["voice_score"],
+            }
+        )
+    return found
+
+
+def people_counts(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Everyone's names and call counts, for the call list's People filters."""
+    people = [
+        {
+            "id": r["id"],
+            "display_name": r["display_name"],
+            "calls": r["calls"],
+            "maybe_calls": r["maybe_calls"],
+        }
+        for r in conn.execute(
+            "SELECT p.id, p.display_name,"
+            " count(a.call_id) FILTER (WHERE a.status IN ('confident', 'maybe')) AS calls,"
+            " count(a.call_id) FILTER (WHERE a.status = 'maybe') AS maybe_calls"
+            " FROM profiles p LEFT JOIN attributions a ON a.profile_id = p.id"
+            " GROUP BY p.id ORDER BY p.display_name COLLATE NOCASE, p.id"
+        )
+    ]
+    maybe: int = conn.execute(
+        "SELECT count(DISTINCT call_id) FROM attributions WHERE status = 'maybe'"
+    ).fetchone()[0]
+    unassigned: int = conn.execute(
+        f"SELECT count(*) FROM calls c WHERE c.state = 'transcribed' AND NOT {_ATTRIBUTED}"  # noqa: S608
+    ).fetchone()[0]
+    return {"people": people, "maybe_calls": maybe, "unassigned_calls": unassigned}
 
 
 def _call_row(row: sqlite3.Row) -> dict[str, Any]:
@@ -187,6 +281,7 @@ def call_detail(conn: sqlite3.Connection, call_id: int) -> dict[str, Any] | None
         "transcribed_at": row["transcribed_at"],
         "language": row["language"],
         "model": row["model"],
+        "attributions": attributions(conn, [call_id]).get(call_id, []),
     }
 
 

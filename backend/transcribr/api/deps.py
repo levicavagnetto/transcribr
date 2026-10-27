@@ -9,6 +9,7 @@ from fastapi import Depends, Request
 
 from transcribr.admin import Admins, FailureLimiter
 from transcribr.api.listen import WebRavon
+from transcribr.attribution.profiles import ProfileError
 from transcribr.config import Config
 from transcribr.store.db import connect
 
@@ -23,6 +24,18 @@ class ApiError(Exception):
         self.code = code
         self.message = message
         self.extra = extra
+
+
+_PROFILE_ERROR_STATUS = {
+    "profile_not_found": 404,
+    "call_not_found": 404,
+    "not_maybe": 409,
+}
+
+
+def profile_error(error: ProfileError) -> ApiError:
+    """The API error for a refused people, enrollment or attribution action."""
+    return ApiError(_PROFILE_ERROR_STATUS.get(error.code, 422), error.code, error.message)
 
 
 def get_config(request: Request) -> Config:

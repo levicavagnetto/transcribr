@@ -106,6 +106,8 @@ Implemented exactly as the `call-attribution` "Automatic attribution rules" requ
   - `DELETE /api/v1/calls/{id}/attributions/{profile}`, which stores a `rejected` manual row.
   - `POST …/confirm` to confirm a Maybe.
 - **The call list from `add-call-browser` gains** `person`, `maybe` and `unassigned` filters, and an `attributions` array per row.
+- **Open, people for the filters:** `GET /api/v1/people` gives each person's ID, display name and call counts, plus the Maybe and Unassigned counts. It holds names and numbers only, so staff can build the People filter without the admin endpoints.
+- **Filter meanings:** `person` is that person's Confident and Maybe calls; with `maybe` it narrows to their Maybes. `unassigned` is Transcribed calls with no Confident or Maybe attribution, and can't be combined with the other two. Call detail and each list row carry an `attributions` array; rejections are not shown.
 - **The transcript gains** a per-segment `has_voiceprint` flag, so the admin's enrollment tick boxes know which lines qualify.
 - **Voice data stays inside:** scores are returned as numbers, and voiceprints and centroids never.
 
