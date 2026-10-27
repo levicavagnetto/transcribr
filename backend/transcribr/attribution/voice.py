@@ -14,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 
 from transcribr.attribution.profiles import ProfileError, Profiles
+from transcribr.attribution.queue import request_rematch
 from transcribr.store.db import transaction
 from transcribr.timeutil import to_iso, utcnow
 
@@ -123,6 +124,7 @@ class VoiceSamples:
                 " VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
                 [(profile_id, call_id, idx, to_iso(self._now())) for idx in wanted],
             )
+            request_rematch(self._conn, self._now())
         return self.progress(profile_id)
 
     def remove_call(self, profile_id: int, call_id: int) -> VoiceProgress:
@@ -133,6 +135,7 @@ class VoiceSamples:
                 "DELETE FROM voice_samples WHERE profile_id = ? AND call_id = ?",
                 (profile_id, call_id),
             )
+            request_rematch(self._conn, self._now())
         return self.progress(profile_id)
 
     def progress(self, profile_id: int) -> VoiceProgress:

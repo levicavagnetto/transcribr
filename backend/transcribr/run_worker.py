@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from types import FrameType
 
+from transcribr.attribution.profiles import Profiles
 from transcribr.config import Config
 from transcribr.ingest.uptime import HEARTBEAT_INTERVAL, Uptime
 from transcribr.pipeline.process import JobRunner, ModelPipeline
@@ -103,7 +104,8 @@ def _run(config: Config, stop: threading.Event, process_one: JobProcessor | None
 
     worker = Worker.from_state(conn, make_client, clock=clock, stop=stop, process_one=process_one)
     if process_one is None:
-        runner = JobRunner(conn, worker.client, ModelPipeline(config.models_dir))
+        pipeline = ModelPipeline(config.models_dir, hotwords=Profiles(conn).hotwords)
+        runner = JobRunner(conn, worker.client, pipeline)
         runner.recover()
         worker.set_processor(runner.process_one)
     heartbeat = start_heartbeat(config.database_path, stop)

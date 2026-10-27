@@ -6,12 +6,15 @@ without a restart. Later changes add their own settings with `register()`.
 
 import logging
 import sqlite3
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated, Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AfterValidator, Field, TypeAdapter, ValidationError
+
+from transcribr.store.db import transaction
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +38,10 @@ class Setting[T]:
 
 
 _REGISTRY: dict[str, Setting[Any]] = {}
+
+# Checks across settings: given all values after a change, the problem or None.
+type Rule = Callable[[Mapping[str, Any]], SettingError | None]
+_RULES: list[Rule] = []
 
 
 def register[T](setting: Setting[T]) -> Setting[T]:
@@ -130,6 +137,41 @@ RESEARCH_PROMPT = register(
 )
 
 
+VOICE_THRESHOLD_MESSAGE = "Each voice threshold must be a number from 0 to 1."
+_THRESHOLD = TypeAdapter(Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)])
+
+# Provisional: calibration on real calls (add-call-attribution 3.1) sets the real defaults.
+VOICE_LOW = register(
+    Setting(
+        key="voice_threshold_low",
+        adapter=_THRESHOLD,
+        default=0.50,
+        label="Weak voice match from",
+        message=VOICE_THRESHOLD_MESSAGE,
+    )
+)
+VOICE_HIGH = register(
+    Setting(
+        key="voice_threshold_high",
+        adapter=_THRESHOLD,
+        default=0.65,
+        label="Strong voice match from",
+        message=VOICE_THRESHOLD_MESSAGE,
+    )
+)
+
+
+def _low_below_high(values: Mapping[str, Any]) -> SettingError | None:
+    if values[VOICE_LOW.key] < values[VOICE_HIGH.key]:
+        return None
+    return SettingError(
+        VOICE_LOW.key, "The weak voice match threshold must be below the strong one."
+    )
+
+
+_RULES.append(_low_below_high)
+
+
 class Settings:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn
@@ -147,24 +189,37 @@ class Settings:
             return setting.default
 
     def set[T](self, setting: Setting[T], value: object) -> T:
-        try:
-            clean = setting.adapter.validate_python(value)
-        except ValidationError as error:
-            raise SettingError(setting.key, setting.message) from error
-        now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
-        self._conn.execute(
-            "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)"
-            " ON CONFLICT (key) DO UPDATE"
-            " SET value = excluded.value, updated_at = excluded.updated_at",
-            (setting.key, setting.adapter.dump_json(clean).decode(), now),
-        )
+        clean: T = self.set_many({setting.key: value})[setting.key]
         return clean
 
     def set_by_key(self, key: str, value: object) -> object:
-        setting = _REGISTRY.get(key)
-        if setting is None:
-            raise SettingError(key, f"unknown setting {key!r}")
-        return self.set(setting, value)
+        return self.set_many({key: value})[key]
+
+    def set_many(self, changes: Mapping[str, object]) -> dict[str, Any]:
+        """Validate every change and the rules across settings, then save them all, or none."""
+        cleaned: dict[str, Any] = {}
+        for key, value in changes.items():
+            setting = _REGISTRY.get(key)
+            if setting is None:
+                raise SettingError(key, f"unknown setting {key!r}")
+            try:
+                cleaned[key] = setting.adapter.validate_python(value)
+            except ValidationError as error:
+                raise SettingError(key, setting.message) from error
+        now = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+        with transaction(self._conn):
+            merged = self.as_dict() | cleaned
+            for rule in _RULES:
+                if (problem := rule(merged)) is not None:
+                    raise problem
+            for key, clean in cleaned.items():
+                self._conn.execute(
+                    "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)"
+                    " ON CONFLICT (key) DO UPDATE"
+                    " SET value = excluded.value, updated_at = excluded.updated_at",
+                    (key, _REGISTRY[key].adapter.dump_json(clean).decode(), now),
+                )
+        return cleaned
 
     def as_dict(self) -> dict[str, Any]:
         return {key: self.get(setting) for key, setting in _REGISTRY.items()}

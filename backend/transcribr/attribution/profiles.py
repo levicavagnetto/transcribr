@@ -2,6 +2,7 @@
 
 Deleting a profile deletes its name variants, voice samples and every attribution to it
 (the database cascades), so its calls fall back to Unassigned unless someone else is on them.
+Every change queues a rematch of all calls (design D6).
 """
 
 import sqlite3
@@ -10,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from transcribr.attribution.names import normalize
+from transcribr.attribution.queue import request_rematch
 from transcribr.store.db import transaction
 from transcribr.timeutil import to_iso, utcnow
 
@@ -81,6 +83,11 @@ class Profiles:
             raise ProfileError("profile_not_found", "There is no such person.")
         return self._load(profile_id)
 
+    def hotwords(self) -> list[str]:
+        """Every name variant, for the speech model's hotword list (design D8)."""
+        rows = self._conn.execute("SELECT DISTINCT variant FROM name_variants ORDER BY id")
+        return [r["variant"] for r in rows]
+
     def exists(self, profile_id: int) -> bool:
         row = self._conn.execute("SELECT 1 FROM profiles WHERE id = ?", (profile_id,)).fetchone()
         return row is not None
@@ -94,6 +101,7 @@ class Profiles:
                 (name, to_iso(self._now())),
             ).fetchone()[0]
             self._set_variants(profile_id, cleaned)
+            request_rematch(self._conn, self._now())
         return self._load(profile_id)
 
     def update(self, profile_id: int, display_name: str, variants: Sequence[str]) -> Profile:
@@ -107,12 +115,14 @@ class Profiles:
                 raise ProfileError("profile_not_found", "There is no such person.")
             self._conn.execute("DELETE FROM name_variants WHERE profile_id = ?", (profile_id,))
             self._set_variants(profile_id, cleaned)
+            request_rematch(self._conn, self._now())
         return self._load(profile_id)
 
     def delete(self, profile_id: int) -> None:
         with transaction(self._conn):
             if not self._conn.execute("DELETE FROM profiles WHERE id = ?", (profile_id,)).rowcount:
                 raise ProfileError("profile_not_found", "There is no such person.")
+            request_rematch(self._conn, self._now())
 
     def _set_variants(self, profile_id: int, cleaned: Sequence[tuple[str, str]]) -> None:
         self._conn.executemany(

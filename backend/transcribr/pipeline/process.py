@@ -1,4 +1,7 @@
-"""Turning queued calls into stored transcripts: the job runner (design D3) and the pipeline."""
+"""Turning queued calls into stored transcripts: the job runner (design D3) and the pipeline.
+
+The runner also does rematch jobs: they read stored data only, so they need no audio or model.
+"""
 
 import json
 import logging
@@ -9,6 +12,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 
+from transcribr.attribution.matching import attribute_call, load_context, rematch_all
+from transcribr.attribution.queue import REMATCH
 from transcribr.pipeline.audio import AudioError, decode
 from transcribr.pipeline.transcribe import Transcriber
 from transcribr.pipeline.voiceprint import Line, Voiceprinter
@@ -47,10 +52,16 @@ class Pipeline(Protocol):
 class ModelPipeline:
     """Decode, transcribe, then voiceprint each line. Models load on first use and stay loaded."""
 
-    def __init__(self, models_dir: Path, *, hotwords: Callable[[], Sequence[str]] = tuple) -> None:
+    def __init__(
+        self,
+        models_dir: Path,
+        *,
+        hotwords: Callable[[], Sequence[str]] = tuple,
+        transcriber: Transcriber | None = None,
+    ) -> None:
         self._models_dir = models_dir
-        self._hotwords = hotwords
-        self._transcriber: Transcriber | None = None
+        self._hotwords = hotwords  # read before each call, so profile changes apply at once
+        self._transcriber = transcriber
         self._voiceprinter: Voiceprinter | None = None
 
     def run(self, audio: bytes) -> PipelineResult:
@@ -99,6 +110,8 @@ class JobRunner:
 
     def process_one(self, _conn: sqlite3.Connection | None = None) -> bool:
         """Process the next due job, if any. Returns whether one was attempted."""
+        if self._rematch_one():
+            return True
         claimed = self._claim()
         if claimed is None:
             return False
@@ -111,6 +124,33 @@ class JobRunner:
             self._attempt_failed(claimed, error)
         else:
             self._store(claimed, result)
+        return True
+
+    def _rematch_one(self) -> bool:
+        now = to_iso(self._now())
+        with transaction(self._conn):
+            row = self._conn.execute(
+                "SELECT id, attempts FROM jobs WHERE type = ? AND claimed_at IS NULL"
+                " AND (not_before IS NULL OR not_before <= ?) ORDER BY id LIMIT 1",
+                (REMATCH, now),
+            ).fetchone()
+            if row is None:
+                return False
+            self._conn.execute("UPDATE jobs SET claimed_at = ? WHERE id = ?", (now, row["id"]))
+        try:
+            count = rematch_all(self._conn, self._now())
+        except Exception as error:
+            attempts: int = row["attempts"] + 1
+            delay = RETRY_DELAYS[min(attempts, len(RETRY_DELAYS)) - 1]
+            log.exception("rematch failed (attempt %d), will retry", attempts)
+            self._conn.execute(
+                "UPDATE jobs SET claimed_at = NULL, attempts = ?, not_before = ?, last_error = ?"
+                " WHERE id = ?",
+                (attempts, to_iso(self._now() + delay), _reason(error), row["id"]),
+            )
+            return True
+        self._conn.execute("DELETE FROM jobs WHERE id = ?", (row["id"],))
+        log.info("rematched %d call(s)", count)
         return True
 
     def _claim(self) -> _Claimed | None:
@@ -194,6 +234,7 @@ class JobRunner:
                     for index, s in enumerate(result.segments)
                 ],
             )
+            attribute_call(self._conn, call_id, load_context(self._conn), self._now())
             self._conn.execute(
                 "UPDATE calls SET state = 'transcribed', failure_reason = NULL WHERE id = ?",
                 (call_id,),

@@ -18,17 +18,19 @@
 
 ## 3. Calibration on real calls
 
+Done after groups 4 to 6 (decided 2026-10-26): enrollment needs the admin line tick boxes from 5.1 and 6.3. Until then the thresholds, minimum presence and usability rule use provisional defaults, and 3.1's results replace them, followed by a rematch.
+
 - [ ] 3.1 With the user, set up the service writer's profile on the real instance and enroll lines from at least 3 calls; then run calibration on at least 10 other calls known to include him and at least 10 known not to; record the presence-score spread, choose the minimum presence, the default low and high thresholds and the usability rule, and write them with their reasoning into the change notes
 - [ ] 3.2 With the user, check from the same calls how often the service writer's name appears in the first 30 seconds of speech, and record the rate in the change notes
 
 ## 4. Attribution logic
 
-- [ ] 4.1 Add the voice threshold settings with the calibrated defaults and the low-below-high rule, and verify tests for the defaults and rejected values
-- [ ] 4.2 Implement name evidence (design D2), and verify tests for the greeting, late-name, accent and misspelling cases
-- [ ] 4.3 Implement the rules as a pure function (design D4), and verify table-driven tests for every scenario under "Automatic attribution rules", including the transfer and "caller asks for someone" cases
-- [ ] 4.4 Implement manual decisions (claim, reject, confirm Maybe), and verify tests for every scenario under "Manual attribution wins"
-- [ ] 4.5 Run attribution after each successful transcription, and add the de-duplicated `rematch` job type triggered by profile, sample and threshold changes (design D6); verify that a rematch over 100 stored calls makes zero Ravon requests, loads no model and leaves manual rows unchanged
-- [ ] 4.6 Pass name variants to the transcriber's hotword list before each job (design D8), and verify a unit test that the current variants reach the engine and a `model`-marked test that a configured name is spelled as configured
+- [x] 4.1 Add the voice threshold settings with provisional defaults (replaced by the calibrated ones in 3.1) and the low-below-high rule, and verify tests for the defaults and rejected values
+- [x] 4.2 Implement name evidence (design D2), and verify tests for the greeting, late-name, accent and misspelling cases
+- [x] 4.3 Implement the rules as a pure function (design D4), and verify table-driven tests for every scenario under "Automatic attribution rules", including the transfer and "caller asks for someone" cases
+- [x] 4.4 Implement manual decisions (claim, reject, confirm Maybe), and verify tests for every scenario under "Manual attribution wins"
+- [x] 4.5 Run attribution after each successful transcription, and add the de-duplicated `rematch` job type triggered by profile, sample and threshold changes (design D6); verify that a rematch over 100 stored calls makes zero Ravon requests, loads no model and leaves manual rows unchanged
+- [x] 4.6 Pass name variants to the transcriber's hotword list before each job (design D8), and verify a unit test that the current variants reach the engine and a `model`-marked test that a configured name is spelled as configured
 
 ## 5. API
 

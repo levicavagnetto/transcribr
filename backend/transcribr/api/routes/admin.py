@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from transcribr.admin import AdminError
-from transcribr.api.deps import AdminsDep, AdminSession, ApiError, Db, require_admin
+from transcribr.api.deps import AdminsDep, AdminSession, ApiError, Db, Now, require_admin
+from transcribr.attribution.matching import REMATCH_SETTINGS
+from transcribr.attribution.queue import request_rematch
 from transcribr.settings import Setting, SettingError, Settings, registered
 from transcribr.store.state import (
     QUEUE_LIST,
@@ -52,24 +54,21 @@ def get_settings(conn: Db) -> dict[str, Any]:
 
 
 @router.put("/settings")
-def put_settings(changes: dict[str, Any], conn: Db) -> dict[str, Any]:
-    """Change one or more settings. All are validated before any is saved."""
-    settings = Settings(conn)
+def put_settings(changes: dict[str, Any], conn: Db, now: Now) -> dict[str, Any]:
+    """Change one or more settings. All are validated, together, before any is saved."""
     known = registered()
-    cleaned: dict[str, Any] = {}
-    for key, value in changes.items():
-        setting = known.get(key)
-        if setting is None:
+    for key in changes:
+        if key not in known:
             raise ApiError(422, "unknown_setting", f"There is no setting called {key!r}.", key=key)
-        try:
-            cleaned[key] = setting.adapter.validate_python(value)
-        except ValueError:
-            raise ApiError(422, "invalid_setting", setting.message, key=key) from None
+    settings = Settings(conn)
+    before = settings.as_dict()
     try:
-        for key, value in cleaned.items():
-            settings.set_by_key(key, value)
-    except SettingError as error:  # pragma: no cover - values were validated above
+        settings.set_many(changes)
+    except SettingError as error:
         raise ApiError(422, "invalid_setting", error.message, key=error.key) from None
+    after = settings.as_dict()
+    if any(before[key] != after[key] for key in REMATCH_SETTINGS):
+        request_rematch(conn, now)
     return get_settings(conn)
 
 

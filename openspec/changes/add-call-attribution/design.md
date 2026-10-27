@@ -79,6 +79,7 @@ Mockups (People, and attribution on the Calls and Call screens): see `docs/archi
 Implemented exactly as the `call-attribution` "Automatic attribution rules" requirement, as a pure function: `(name hits, presence scores, usable profiles, thresholds, manual rows) → attribution rows`.
 - A profile with a manual row keeps it untouched.
 - A `rejected` manual row blocks any automatic row for that profile on that call.
+- When a profile has a usable voice but the call has too little voiceprinted speech for a presence score (a very short call, or one transcribed before line voiceprints), the voice can't tell either way. A name hit then counts as "name with no voice profile yet" (Confident), not as "no voice match" (Maybe).
 
 ### D5. Enrollment
 - Only the admin enrolls. On a Transcribed call, the logged-in admin sees a tick box per line, ticks lines where only that person talks, and chooses "Enroll as <person>".
