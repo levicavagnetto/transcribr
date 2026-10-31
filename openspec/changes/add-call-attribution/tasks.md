@@ -40,10 +40,10 @@ Done after groups 4 to 6 (decided 2026-10-26): enrollment needs the admin line t
 
 ## 6. Screens
 
-- [ ] 6.1 Build the People screen at `/admin/people` (design D10: list, variants, voice progress, enrolled lines by call with Remove, how calls were found, the consent note), and verify component tests including "how much more is needed"
-- [ ] 6.2 Add the People filter section and attribution chips to the Calls view, and verify component tests for each filter, combining with search, and Maybe markers
-- [ ] 6.3 Add "People on this call" with its actions to the Call view, plus the admin-only line tick boxes and "Enroll as <person>"; verify component tests for each action, that staff see no tick boxes, and that lines without a voiceprint can't be ticked
-- [ ] 6.4 Add the voice threshold section to the admin Settings screen, and verify component tests for editing and the low-above-high message
+- [x] 6.1 Build the People screen at `/admin/people` (design D10: list, variants, voice progress, enrolled lines by call with Remove, how calls were found, the consent note), and verify component tests including "how much more is needed"
+- [x] 6.2 Add the People filter section and attribution chips to the Calls view, and verify component tests for each filter, combining with search, and Maybe markers
+- [x] 6.3 Add "People on this call" with its actions to the Call view, plus the admin-only line tick boxes and "Enroll as <person>"; verify component tests for each action, that staff see no tick boxes, and that lines without a voiceprint can't be ticked
+- [x] 6.4 Add the voice threshold section to the admin Settings screen, and verify component tests for editing and the low-above-high message
 
 ## 7. End-to-end checks
 

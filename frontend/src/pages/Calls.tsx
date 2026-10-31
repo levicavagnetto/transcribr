@@ -26,10 +26,12 @@ import {
   keys,
   useCalls,
   useLoadEarlier,
+  usePeople,
   useStatus,
   useTranscribe,
 } from "../api/hooks";
 import { CheckRavon } from "../calls/CheckRavon";
+import { PersonChip } from "../calls/PersonChip";
 import { STATE_LABEL, StateChip } from "../calls/StateChip";
 import { mss, startLabel } from "../format";
 import { monoFontFamily } from "../theme";
@@ -44,6 +46,48 @@ export function searchFilter(text: string): Pick<CallFilters, "q" | "number"> {
   if (!trimmed) return {};
   if (/[a-z]/i.test(trimmed)) return { q: trimmed };
   return trimmed.replace(/\D/g, "").length >= 3 ? { number: trimmed } : {};
+}
+
+// The People filter: anyone, one person (their Confident and Maybe calls), every Maybe, or nobody.
+type PersonChoice = "any" | "maybe" | "unassigned" | `person:${number}`;
+
+function personFilter(choice: PersonChoice): Pick<CallFilters, "person" | "maybe" | "unassigned"> {
+  if (choice === "maybe") return { maybe: "true" };
+  if (choice === "unassigned") return { unassigned: "true" };
+  if (choice.startsWith("person:")) return { person: choice.slice("person:".length) };
+  return {};
+}
+
+function PeopleFilter({ value, onChange }: { value: PersonChoice; onChange: (choice: PersonChoice) => void }) {
+  const { data } = usePeople();
+  if (!data || data.people.length === 0) return null;
+  const options: { value: PersonChoice; label: string }[] = [
+    { value: "any", label: "Anyone" },
+    ...data.people.map((p) => ({ value: `person:${p.id}` as const, label: `${p.display_name} (${p.calls})` })),
+    { value: "maybe", label: `Maybe (${data.maybe_calls})` },
+    { value: "unassigned", label: `Unassigned (${data.unassigned_calls})` },
+  ];
+  return (
+    <Box sx={{ flexBasis: "100%", display: "flex", flexDirection: "column", gap: 0.75 }}>
+      <Typography id="people-filter-label" variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+        People
+      </Typography>
+      <ToggleButtonGroup
+        exclusive
+        size="small"
+        value={value}
+        onChange={(_e, next: PersonChoice | null) => next && onChange(next)}
+        aria-labelledby="people-filter-label"
+        sx={{ flexWrap: "wrap", gap: 0.75, "& .MuiToggleButton-root": { borderRadius: "16px !important", border: 1, px: 1.75 } }}
+      >
+        {options.map((o) => (
+          <ToggleButton key={o.value} value={o.value}>
+            {o.label}
+          </ToggleButton>
+        ))}
+      </ToggleButtonGroup>
+    </Box>
+  );
 }
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -87,7 +131,7 @@ function Passage({ call }: { call: CallListItem }) {
   if (!call.passage) return null;
   return (
     <TableRow>
-      <TableCell colSpan={6} sx={{ pt: 0, pb: 1.5, pl: { xs: 2, md: 22 }, color: "text.secondary", lineHeight: 1.6 }}>
+      <TableCell colSpan={7} sx={{ pt: 0, pb: 1.5, pl: { xs: 2, md: 22 }, color: "text.secondary", lineHeight: 1.6 }}>
         <Box component="span" sx={{ fontFamily: monoFontFamily, fontSize: 12, mr: 1 }}>
           at {mss(call.passage.at_s)}
         </Box>
@@ -144,6 +188,7 @@ export function Calls() {
   const [state, setState] = useState<CallState | "any">("any");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [person, setPerson] = useState<PersonChoice>("any");
   const search = useDebounced(text, SEARCH_DELAY_MS);
   const filters = useMemo<CallFilters>(
     () => ({
@@ -151,8 +196,9 @@ export function Calls() {
       ...(state === "any" ? {} : { state }),
       ...(from ? { from } : {}),
       ...(to ? { to } : {}),
+      ...personFilter(person),
     }),
-    [search, state, from, to],
+    [search, state, from, to, person],
   );
   const filtered = Object.keys(filters).length > 0;
   const calls = useCalls(filters);
@@ -179,6 +225,7 @@ export function Calls() {
     setState("any");
     setFrom("");
     setTo("");
+    setPerson("any");
   };
   const count = `${rows.length}${hasNextPage ? "+" : ""}`;
   const summary = filtered
@@ -245,6 +292,7 @@ export function Calls() {
           <TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} sx={{ flex: 1 }} slotProps={{ inputLabel: { shrink: true } }} />
           <TextField label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} sx={{ flex: 1 }} slotProps={{ inputLabel: { shrink: true } }} />
         </Box>
+        <PeopleFilter value={person} onChange={setPerson} />
       </Paper>
 
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 1 }}>
@@ -255,13 +303,14 @@ export function Calls() {
       {calls.error && <Alert severity="error">{calls.error.message}</Alert>}
 
       <TableContainer component={Paper} aria-label="Calls">
-        <Table size="small" sx={{ minWidth: 920 }}>
+        <Table size="small" sx={{ minWidth: 1040 }}>
           <TableHead>
             <TableRow>
               <TableCell>Started</TableCell>
               <TableCell>Length</TableCell>
               <TableCell>Caller</TableCell>
               <TableCell>Answered by</TableCell>
+              <TableCell>People</TableCell>
               <TableCell>State</TableCell>
               <TableCell>
                 <Box component="span" sx={visuallyHidden}>
@@ -274,7 +323,7 @@ export function Calls() {
             {calls.isLoading &&
               Array.from({ length: 6 }, (_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Skeleton />
                   </TableCell>
                 </TableRow>
@@ -298,6 +347,13 @@ export function Calls() {
                     <TableCell sx={{ fontFamily: monoFontFamily }}>{call.caller_number}</TableCell>
                     <TableCell sx={{ color: "text.secondary" }}>{call.answered_by}</TableCell>
                     <TableCell>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                        {call.attributions.map((a) => (
+                          <PersonChip key={a.profile_id} attribution={a} />
+                        ))}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
                       <StateChip state={call.state} />
                     </TableCell>
                     <TableCell>
@@ -310,11 +366,11 @@ export function Calls() {
             })}
             {!calls.isLoading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+                <TableCell colSpan={7} sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
                   {filtered ? (
                     <>
                       <Typography sx={{ fontWeight: 500, color: "text.primary" }}>No calls match</Typography>
-                      Try fewer words, a different date range, or clear the state filter.
+                      Try fewer words, a different date range, or clear the state and people filters.
                     </>
                   ) : (
                     "No calls are listed yet."

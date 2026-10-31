@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router";
 
 import { AdminGate } from "./pages/admin/AdminGate";
 import { Login } from "./pages/admin/Login";
+import { People } from "./pages/admin/People";
 import { Settings } from "./pages/admin/Settings";
 import { Setup } from "./pages/admin/Setup";
 import { Call } from "./pages/Call";
@@ -21,6 +22,7 @@ export function App() {
               <Routes>
                 <Route path="setup" element={<Setup />} />
                 <Route path="login" element={<Login />} />
+                <Route path="people" element={<People />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/admin/settings" replace />} />
               </Routes>

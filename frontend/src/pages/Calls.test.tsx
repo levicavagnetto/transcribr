@@ -2,7 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { type CallListItem, REFRESH_MS, type Status } from "../api/hooks";
-import { auth, call, callList, type FakeApi, installFakeApi, status } from "../test/fakeApi";
+import { attribution, auth, call, callList, type FakeApi, installFakeApi, people, status } from "../test/fakeApi";
 import { renderApp } from "../test/renderApp";
 import { searchFilter } from "./Calls";
 
@@ -176,6 +176,69 @@ describe("the call list", () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))));
     renderApp("/");
     expect((await screen.findAllByText(/Can't reach the Transcribr server/)).length).toBeGreaterThan(0);
+  });
+});
+
+describe("the People filter", () => {
+  const NOLANS = call({ id: 90012420, attributions: [attribution()] });
+  const MAYBE = call({
+    id: 90012421,
+    start_local: "2026-10-22 10:15:00",
+    attributions: [attribution({ status: "maybe", method: "voice", name_heard: null, name_at_s: null, voice_score: 0.58 })],
+  });
+
+  function servePeople(): World {
+    const world = serve([NOLANS, MAYBE, MISSED]);
+    world.api.on("GET /people", people());
+    return world;
+  }
+
+  it("lists each person, Maybe and Unassigned with their counts", async () => {
+    servePeople();
+    renderApp("/");
+    const group = await screen.findByRole("group", { name: "People" });
+    const labels = within(group).getAllByRole("button").map((b) => b.textContent);
+    expect(labels).toEqual(["Anyone", "Nolan (14)", "Dana (6)", "Maybe (3)", "Unassigned (9)"]);
+  });
+
+  it("shows people on each row, with Maybe marked differently", async () => {
+    servePeople();
+    renderApp("/");
+    const table = within(await screen.findByRole("table"));
+    expect(await table.findByLabelText("Nolan")).toHaveTextContent("Nolan");
+    expect(table.getByLabelText("Maybe Nolan")).toHaveTextContent("Nolan?");
+  });
+
+  it.each([
+    ["Nolan (14)", "person", "2"],
+    ["Maybe (3)", "maybe", "true"],
+    ["Unassigned (9)", "unassigned", "true"],
+  ])("sends the %s filter", async (button, key, value) => {
+    const world = servePeople();
+    renderApp("/");
+    await userEvent.click(await screen.findByRole("button", { name: button }));
+    await vi.waitFor(() => expect(callsRequests(world).at(-1)!.get(key)).toBe(value));
+  });
+
+  it("combines a person with a search", async () => {
+    const world = servePeople();
+    renderApp("/");
+    await userEvent.click(await screen.findByRole("button", { name: "Nolan (14)" }));
+    await userEvent.type(screen.getByLabelText(/Search words said/), "lift kit");
+    await vi.waitFor(() => {
+      const last = callsRequests(world).at(-1)!;
+      expect([last.get("person"), last.get("q")]).toEqual(["2", "lift kit"]);
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Clear search and filters" }));
+    await vi.waitFor(() => expect(callsRequests(world).at(-1)!.toString()).toBe("limit=50"));
+  });
+
+  it("is hidden while there are no people", async () => {
+    const world = serve();
+    world.api.on("GET /people", people({ people: [] }));
+    renderApp("/");
+    await screen.findByRole("link", { name: "Today 11:41" });
+    expect(screen.queryByRole("group", { name: "People" })).toBeNull();
   });
 });
 

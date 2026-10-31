@@ -203,3 +203,44 @@ describe("the research prompt", () => {
     expect(await section.findByText(/must be 1 to 4,000 characters/)).toBeInTheDocument();
   });
 });
+
+describe("voice matching thresholds", () => {
+  it("saves both thresholds on their own", async () => {
+    const api = serve();
+    api.on("PUT /admin/settings", (body: unknown) => ({ body: settings(body as object) }));
+    renderApp("/admin/settings");
+    const section = within(await screen.findByRole("region", { name: "Voice matching" }));
+    const weak = section.getByLabelText("Weak voice match from");
+    expect(weak).toHaveValue("0.5");
+    await userEvent.clear(weak);
+    await userEvent.type(weak, "0.55");
+    await userEvent.click(section.getByRole("button", { name: "Save voice matching" }));
+    expect(await screen.findByText(/Voice matching saved/)).toBeInTheDocument();
+    const put = api.sent.find((r) => r.method === "PUT");
+    expect(put?.body).toEqual({ voice_threshold_low: 0.55, voice_threshold_high: 0.65 });
+  });
+
+  it("refuses a weak threshold above the strong one and sends nothing", async () => {
+    const api = serve();
+    renderApp("/admin/settings");
+    const section = within(await screen.findByRole("region", { name: "Voice matching" }));
+    const weak = section.getByLabelText("Weak voice match from");
+    await userEvent.clear(weak);
+    await userEvent.type(weak, "0.8");
+    await userEvent.click(section.getByRole("button", { name: "Save voice matching" }));
+    expect(section.getByText(/must be below the strong one/)).toBeInTheDocument();
+    expect(api.sent.some((r) => r.method === "PUT")).toBe(false);
+  });
+
+  it("shows the server's message when it rejects the values", async () => {
+    const api = serve();
+    api.on("PUT /admin/settings", () => ({
+      status: 422,
+      body: { error: { code: "invalid_setting", key: "voice_threshold_low", message: "The weak voice match threshold must be below the strong one." } },
+    }));
+    renderApp("/admin/settings");
+    const section = within(await screen.findByRole("region", { name: "Voice matching" }));
+    await userEvent.click(section.getByRole("button", { name: "Save voice matching" }));
+    expect(await section.findByText("The weak voice match threshold must be below the strong one.")).toBeInTheDocument();
+  });
+});

@@ -19,7 +19,10 @@ import { clockTime } from "../format";
 import { StatusBanner } from "./StatusBanner";
 import { ThemeMenu } from "./ThemeMenu";
 
-const ADMIN_TABS = [{ path: "/admin/settings", label: "Settings" }];
+const ADMIN_TABS = [
+  { path: "/admin/people", label: "People" },
+  { path: "/admin/settings", label: "Settings" },
+];
 
 function WorkerChip() {
   const { data } = useStatus();

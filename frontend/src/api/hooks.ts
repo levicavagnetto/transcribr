@@ -71,6 +71,17 @@ export interface PassagePart {
   hit: boolean;
 }
 
+// A person on a call. Rejected people are never listed; voiceprints never leave the server.
+export interface Attribution {
+  profile_id: number;
+  display_name: string;
+  status: "confident" | "maybe";
+  method: "name" | "voice" | "name+voice" | "manual";
+  name_heard: string | null;
+  name_at_s: number | null;
+  voice_score: number | null;
+}
+
 export interface CallSummary {
   id: number;
   queue: string;
@@ -82,6 +93,7 @@ export interface CallSummary {
   state: CallState;
   has_transcript: boolean;
   no_speech: boolean;
+  attributions: Attribution[];
 }
 
 export interface CallListItem extends CallSummary {
@@ -125,6 +137,44 @@ export interface CallFilters {
   to?: string;
   q?: string;
   number?: string;
+  person?: string; // a profile ID
+  maybe?: "true";
+  unassigned?: "true";
+}
+
+export interface Person {
+  id: number;
+  display_name: string;
+  calls: number;
+  maybe_calls: number;
+}
+
+export interface People {
+  people: Person[];
+  maybe_calls: number;
+  unassigned_calls: number;
+}
+
+export interface VoiceProgress {
+  calls: number;
+  seconds: number;
+  usable: boolean;
+  calls_needed: number;
+  seconds_needed: number;
+}
+
+export interface Profile {
+  id: number;
+  display_name: string;
+  variants: string[];
+  created_at: string;
+  voice: VoiceProgress;
+  found: { name: number; voice: number; name_and_voice: number; manual: number; maybe: number };
+}
+
+export interface Samples {
+  voice: VoiceProgress;
+  calls: { call_id: number; start_local: string; seconds: number; lines: { idx: number; start_s: number; end_s: number }[] }[];
 }
 
 export const keys = {
@@ -137,6 +187,9 @@ export const keys = {
   call: (id: number) => ["calls", "one", id] as const,
   transcript: (id: number) => ["calls", "transcript", id] as const,
   researchPrompt: ["research-prompt"] as const,
+  people: ["people"] as const,
+  profiles: ["admin", "profiles"] as const,
+  samples: (id: number) => ["admin", "profiles", id, "samples"] as const,
 };
 
 export function useStatus() {
@@ -294,3 +347,65 @@ export function useChangePassword() {
       api.post<{ changed: boolean }>("/admin/password", body),
   });
 }
+
+export function usePeople() {
+  return useQuery({ queryKey: keys.people, queryFn: () => api.get<People>("/people"), refetchInterval: REFRESH_MS });
+}
+
+// Attribution changes move calls between filters, so the lists and counts are refetched.
+function useAttributionChange<Args>(fn: (args: Args) => Promise<unknown>) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: keys.calls });
+      void client.invalidateQueries({ queryKey: keys.people });
+      void client.invalidateQueries({ queryKey: keys.profiles });
+    },
+  });
+}
+
+export const useClaim = () =>
+  useAttributionChange(({ call, person }: { call: number; person: number }) =>
+    api.post(`/calls/${call}/attributions`, { profile_id: person }),
+  );
+export const useReject = () =>
+  useAttributionChange(({ call, person }: { call: number; person: number }) =>
+    api.delete(`/calls/${call}/attributions/${person}`),
+  );
+export const useConfirm = () =>
+  useAttributionChange(({ call, person }: { call: number; person: number }) =>
+    api.post(`/calls/${call}/attributions/${person}/confirm`),
+  );
+
+export function useProfiles(enabled = true) {
+  return useQuery({
+    queryKey: keys.profiles,
+    queryFn: () => api.get<{ profiles: Profile[] }>("/admin/profiles"),
+    enabled,
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useSamples(id: number) {
+  return useQuery({ queryKey: keys.samples(id), queryFn: () => api.get<Samples>(`/admin/profiles/${id}/samples`) });
+}
+
+export interface ProfileIn {
+  display_name: string;
+  variants: string[];
+}
+
+export const useCreateProfile = () =>
+  useAttributionChange((body: ProfileIn) => api.post<Profile>("/admin/profiles", body));
+export const useUpdateProfile = () =>
+  useAttributionChange(({ id, ...body }: ProfileIn & { id: number }) => api.put<Profile>(`/admin/profiles/${id}`, body));
+export const useDeleteProfile = () => useAttributionChange((id: number) => api.delete(`/admin/profiles/${id}`));
+export const useEnroll = () =>
+  useAttributionChange(({ person, call, lines }: { person: number; call: number; lines: number[] }) =>
+    api.post<Samples>(`/admin/profiles/${person}/samples`, { call_id: call, lines }),
+  );
+export const useRemoveSamples = () =>
+  useAttributionChange(({ person, call }: { person: number; call: number }) =>
+    api.delete<Samples>(`/admin/profiles/${person}/samples/${call}`),
+  );

@@ -4,11 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { type CallDetail, REFRESH_MS } from "../api/hooks";
 import { chatGptText } from "../copy";
 import {
+  attribution,
   auth,
   callDetail,
   DEFAULT_PROMPT,
   type FakeApi,
   installFakeApi,
+  people,
   status,
   transcript,
 } from "../test/fakeApi";
@@ -202,4 +204,97 @@ it("falls back to the queue's Ravon value until the worker has read the queue na
   serve({ queue_label: null });
   renderApp(`/calls/${ID}`);
   expect(await screen.findByText("tireProz-salescustserv")).toBeInTheDocument();
+});
+
+describe("people on the call", () => {
+  const BY_BOTH = attribution({ method: "name+voice", name_heard: "Nolan", name_at_s: 2.5, voice_score: 0.71 });
+  const MAYBE = attribution({ profile_id: 3, display_name: "Dana", status: "maybe", method: "voice", name_heard: null, name_at_s: null, voice_score: 0.57 });
+
+  function servePeople(attributions = [BY_BOTH, MAYBE]): FakeApi {
+    const { api } = serve({ attributions });
+    api.on("GET /people", people());
+    for (const verb of ["POST", "DELETE"]) {
+      api.on(`${verb} /calls/${ID}/attributions`, { attributions });
+      api.on(`${verb} /calls/${ID}/attributions/2`, { attributions });
+      api.on(`${verb} /calls/${ID}/attributions/3`, { attributions });
+    }
+    api.on(`POST /calls/${ID}/attributions/3/confirm`, { attributions });
+    return api;
+  }
+
+  it("shows why the call is theirs: the name heard with its time and the voice presence score", async () => {
+    servePeople();
+    renderApp(`/calls/${ID}`);
+    const section = within(await screen.findByRole("region", { name: "People on this call" }));
+    expect(section.getByText('By name and voice · heard "Nolan" at 0:03 · voice presence 0.71')).toBeInTheDocument();
+    expect(section.getByText("Maybe · By voice · voice presence 0.57")).toBeInTheDocument();
+    expect(section.getByLabelText("Maybe Dana")).toBeInTheDocument();
+  });
+
+  it("lets staff reject, confirm and add without logging in", async () => {
+    const api = servePeople([MAYBE]);
+    renderApp(`/calls/${ID}`);
+    const section = within(await screen.findByRole("region", { name: "People on this call" }));
+    await userEvent.click(section.getByRole("button", { name: "Confirm Dana" }));
+    await userEvent.click(section.getByRole("button", { name: "Not Dana" }));
+    await userEvent.click(section.getByLabelText("Add a person"));
+    await userEvent.click(await screen.findByRole("option", { name: "Nolan" }));
+    await userEvent.click(section.getByRole("button", { name: "Add" }));
+    await vi.waitFor(() => {
+      const writes = api.sent.filter((r) => r.method !== "GET").map((r) => `${r.method} ${r.path} ${JSON.stringify(r.body ?? null)}`);
+      expect(writes).toEqual([
+        `POST /calls/${ID}/attributions/3/confirm null`,
+        `DELETE /calls/${ID}/attributions/3 null`,
+        `POST /calls/${ID}/attributions {"profile_id":2}`,
+      ]);
+    });
+  });
+
+  it("shows staff no enrollment tick boxes", async () => {
+    servePeople();
+    renderApp(`/calls/${ID}`);
+    const lines = within(await screen.findByRole("region", { name: "Transcript" }));
+    expect(lines.queryByRole("checkbox")).toBeNull();
+    expect(lines.queryByRole("button", { name: /Enroll as/ })).toBeNull();
+  });
+});
+
+describe("enrolling lines as the admin", () => {
+  function serveAdmin(): FakeApi {
+    const { api } = serve();
+    api.on("GET /auth/state", auth("logged_in"));
+    api.on("GET /people", people());
+    api.on(`GET /calls/${ID}/transcript`, transcript({
+      segments: [
+        { idx: 0, start_s: 0, end_s: 3.5, text: "Thanks for calling, this is Nolan.", has_voiceprint: true },
+        { idx: 1, start_s: 4.2, end_s: 4.8, text: "Hi.", has_voiceprint: false },
+        { idx: 2, start_s: 65, end_s: 70, text: "About nine hundred for all four.", has_voiceprint: true },
+      ],
+    }));
+    api.on("POST /admin/profiles/2/samples", { voice: { calls: 1, seconds: 8.5, usable: false, calls_needed: 2, seconds_needed: 21.5 }, calls: [] });
+    return api;
+  }
+
+  it("ticks lines and enrolls them for the chosen person", async () => {
+    const api = serveAdmin();
+    renderApp(`/calls/${ID}`);
+    const lines = within(await screen.findByRole("region", { name: "Transcript" }));
+    await userEvent.click(await lines.findByRole("checkbox", { name: "Line at 0:00" }));
+    await userEvent.click(lines.getByRole("checkbox", { name: "Line at 1:05" }));
+    await userEvent.click(lines.getByLabelText("Person"));
+    await userEvent.click(await screen.findByRole("option", { name: "Nolan" }));
+    await userEvent.click(lines.getByRole("button", { name: "Enroll as Nolan" }));
+    expect(await lines.findByText("Enrolled 2 lines for Nolan.")).toBeInTheDocument();
+    const post = api.sent.find((r) => r.method === "POST" && r.path === "/admin/profiles/2/samples");
+    expect(post?.body).toEqual({ call_id: ID, lines: [0, 2] });
+    expect(lines.getByRole("checkbox", { name: "Line at 0:00" })).not.toBeChecked();
+  });
+
+  it("can't tick a line without a voiceprint, and says why", async () => {
+    serveAdmin();
+    renderApp(`/calls/${ID}`);
+    const lines = within(await screen.findByRole("region", { name: "Transcript" }));
+    const short = await lines.findByRole("checkbox", { name: /Line at 0:04\. Can't be enrolled: under 1 second/ });
+    expect(short).toBeDisabled();
+  });
 });

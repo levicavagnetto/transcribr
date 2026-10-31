@@ -2,10 +2,13 @@
 // and every request is recorded so tests can check what the UI sent.
 
 import type {
+  Attribution,
   AuthState,
   CallDetail,
   CallList,
   CallListItem,
+  People,
+  Profile,
   QueueList,
   SettingsResponse,
   Status,
@@ -87,6 +90,8 @@ export function settings(overrides: Partial<SettingsResponse["values"]> = {}): S
       poll_interval_minutes: 2,
       time_zone: "America/Chicago",
       research_prompt: DEFAULT_PROMPT,
+      voice_threshold_low: 0.5,
+      voice_threshold_high: 0.65,
       ...overrides,
     },
     fields: [
@@ -107,6 +112,8 @@ export function settings(overrides: Partial<SettingsResponse["values"]> = {}): S
         min_length: 1,
         max_length: 4000,
       },
+      { key: "voice_threshold_low", label: "Weak voice match from", message: "Each voice threshold must be a number from 0 to 1." },
+      { key: "voice_threshold_high", label: "Strong voice match from", message: "Each voice threshold must be a number from 0 to 1." },
     ],
   };
 }
@@ -136,6 +143,7 @@ export function call(overrides: Partial<CallListItem> = {}): CallListItem {
     state: "transcribed",
     has_transcript: true,
     no_speech: false,
+    attributions: [],
     passage: null,
     ...overrides,
   };
@@ -171,6 +179,43 @@ export function transcript(overrides: Partial<Transcript> = {}): Transcript {
       { idx: 1, start_s: 4.2, end_s: 9.8, text: "I need tires for my 2019 Silverado.", has_voiceprint: true },
       { idx: 2, start_s: 65, end_s: 70, text: "About nine hundred for all four.", has_voiceprint: true },
     ],
+    ...overrides,
+  };
+}
+
+export function attribution(overrides: Partial<Attribution> = {}): Attribution {
+  return {
+    profile_id: 2,
+    display_name: "Nolan",
+    status: "confident",
+    method: "name",
+    name_heard: "Nolan",
+    name_at_s: 2.5,
+    voice_score: null,
+    ...overrides,
+  };
+}
+
+export function people(overrides: Partial<People> = {}): People {
+  return {
+    people: [
+      { id: 2, display_name: "Nolan", calls: 14, maybe_calls: 3 },
+      { id: 3, display_name: "Dana", calls: 6, maybe_calls: 0 },
+    ],
+    maybe_calls: 3,
+    unassigned_calls: 9,
+    ...overrides,
+  };
+}
+
+export function profile(overrides: Partial<Profile> = {}): Profile {
+  return {
+    id: 2,
+    display_name: "Nolan",
+    variants: ["Nolan", "Nolen"],
+    created_at: "2026-10-31T18:53:29Z",
+    voice: { calls: 2, seconds: 20, usable: false, calls_needed: 1, seconds_needed: 10 },
+    found: { name: 11, voice: 0, name_and_voice: 0, manual: 3, maybe: 3 },
     ...overrides,
   };
 }
