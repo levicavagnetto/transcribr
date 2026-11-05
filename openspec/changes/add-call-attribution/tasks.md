@@ -21,7 +21,7 @@
 Done after groups 4 to 6 (decided 2026-10-26). 3.1's results led to removing voice matching (design D3, group 8).
 
 - [x] 3.1 With the user, set up the service writer's profile on the real instance and enroll lines from at least 3 calls; then run calibration on at least 10 other calls known to include him and at least 10 known not to; record the presence-score spread, choose the minimum presence, the default low and high thresholds and the usability rule, and write them with their reasoning into the change notes
-- [ ] 3.2 With the user, check from the same calls how often the service writer's name appears in the first 30 seconds of speech, and record the rate in the change notes
+- [x] 3.2 With the user, check from the same calls how often the service writer's name appears in the first 30 seconds of speech, and record the rate in the change notes
 
 ## 4. Attribution logic
 

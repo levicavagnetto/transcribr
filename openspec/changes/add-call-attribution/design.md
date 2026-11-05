@@ -99,7 +99,18 @@ Removed with voice matching (D3).
 - If there are no profiles, the list stays empty.
 
 ### D9. Calibration
-Removed with voice matching. The measurements that led to removing it are in D3. Task 3.2 (how often the name is said in the opening) still applies, because name evidence is now the only automatic signal.
+Removed with voice matching. The measurements that led to removing it are in D3.
+
+**Name in the opening (task 3.2, 2026-11-05, Nolan, variant "Nolan"):**
+- Of 16 calls confirmed by hand as Nolan's, his name was found in the first 30 seconds of speech in 11 (69%), at 2.9 to 6.1 s.
+- **Missed (5):**
+  - 26578634: the store's recorded greeting runs past 30 s, so his own greeting falls outside the window.
+  - 26578064 and 26577818: the caller speaks first and no greeting was transcribed.
+  - 26577754: the speech model heard "Nolan" as "no one".
+  - 26579023: he answered a call asking for someone else, without saying his name.
+- **Wrong (2 of 9 rejected calls):** 26579201 ("Thanks, Nolan… this is Parker") and 26579369 ("working with Zach and then Nolan"). Both were answered by Parker. Maybe status and Not <person> handle these.
+- **So:** a name hit was right 11 of 13 times (85%). That is why automatic matches stay Maybe. About a third of his calls need Add a person.
+- **Possible follow-ups, not in this change:** measuring the window from the end of the recorded greeting; profiles for Parker and Zach, so their calls are found too.
 
 ### D10. UI
 - **People screen (`/admin/people`):**
