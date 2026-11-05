@@ -49,27 +49,16 @@ A failed processing attempt SHALL be retried up to 3 times with increasing delay
 - **WHEN** a user requests transcription of a Failed call
 - **THEN** it becomes Waiting with a fresh retry count
 
-### Requirement: Speaker-labeled transcript
-Processing SHALL produce a transcript of time-stamped segments, each assigned to a speaker label within the call (for example Speaker 1, Speaker 2). The call's detected language and the model identity SHALL be recorded with the transcript.
+### Requirement: Timestamped transcript
+Processing SHALL produce a transcript of time-stamped segments (lines). Segments SHALL NOT be assigned to speakers, and processing SHALL NOT run speaker separation or compute voice embeddings. No voice data and no audio SHALL be stored. The call's detected language and the model identity SHALL be recorded with the transcript.
 
 #### Scenario: Two-person call
 - **WHEN** a call between a staff member and a customer is processed
-- **THEN** the transcript's segments carry start and end times and are split between two speaker labels
+- **THEN** the transcript's segments carry start and end times and text, with no speaker labels and no stored voice data
 
 #### Scenario: Silent or near-empty call
 - **WHEN** a call contains no recognizable speech
 - **THEN** it ends Transcribed with an empty transcript and a "no speech" marker, not Failed
-
-### Requirement: Per-speaker voice fingerprints
-For each speaker in a transcribed call, processing SHALL store a voice fingerprint and the seconds of speech it came from. No audio SHALL be stored. Fingerprints SHALL never be returned by any API.
-
-#### Scenario: Fingerprints stored without audio
-- **WHEN** a call is Transcribed
-- **THEN** each speaker label has a stored fingerprint and speech duration, and no audio of the call is stored
-
-#### Scenario: API never exposes fingerprints
-- **WHEN** any API endpoint returns a call or its speakers
-- **THEN** the response contains no voice fingerprint data
 
 ### Requirement: Background processing without starving the server
 Processing SHALL handle one call at a time, at lower CPU priority than the web API, so the web app stays responsive while transcription runs.
@@ -77,3 +66,14 @@ Processing SHALL handle one call at a time, at lower CPU priority than the web A
 #### Scenario: Browsing during a backlog
 - **WHEN** 50 calls are Waiting and a user opens the web app
 - **THEN** pages and API reads respond within 2 seconds
+
+### Requirement: Recognize profile names reliably
+Transcription SHALL be biased toward recognizing the name variants configured in people profiles, so names are transcribed consistently. Profile changes SHALL apply to calls transcribed from then on.
+
+#### Scenario: Configured name in a greeting
+- **WHEN** a staff member whose profile lists the name "Nolan" answers "Tire Pros, this is Nolan"
+- **THEN** the transcript spells the name as configured
+
+#### Scenario: New name variant
+- **WHEN** the admin adds the variant "Nolen" to a profile
+- **THEN** calls transcribed afterwards include it in the name hints, and earlier transcripts are unchanged

@@ -74,3 +74,14 @@ The logged-in admin SHALL be able to change the password by entering the current
 #### Scenario: Forgotten password
 - **WHEN** an operator runs the documented reset command on the server
 - **THEN** the admin account is removed, the command prints a new setup code, and the next visit to `/admin` starts first-time setup
+
+### Requirement: People screen in the admin area
+The People screen SHALL live at `/admin/people` behind the admin login, next to Settings. Its API endpoints SHALL require an admin session like every other admin endpoint.
+
+#### Scenario: Admin opens People
+- **WHEN** the logged-in admin opens the admin area
+- **THEN** the navigation shows People and Settings, and People lists every profile
+
+#### Scenario: People without login
+- **WHEN** someone opens `/admin/people` or calls a profile-management endpoint without an admin session
+- **THEN** they are sent to the admin login, or the request is rejected, and no profile data is sent
