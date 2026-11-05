@@ -291,6 +291,17 @@ class Stack:
 
 
 def smoke(stack: Stack) -> None:
+    step("the admin adds a person before any call is transcribed")
+    nolan = stack.web.post(
+        "/api/v1/admin/profiles",
+        headers=WRITE,
+        json={"display_name": "Nolan", "variants": ["Nolan"]},
+    )
+    if nolan.status_code != 200:
+        raise StepFailed(f"create profile: HTTP {nolan.status_code} {nolan.text}")
+    person: int = nolan.json()["id"]
+    print(f"profile {person}: Nolan")
+
     step("a call that ends while the worker runs is transcribed automatically")
     stack.add_calls(AUTO_CALL, ends_in=20, caller=AUTO_CALLER)
     stack.wait_for_state(AUTO_CALL, "transcribed")
@@ -322,6 +333,7 @@ def smoke(stack: Stack) -> None:
     print("transcribed")
 
     find_and_read_a_call(stack)
+    attribution(stack, person)
 
     step("the home page loads and its counts match the database")
     home = stack.web.get("/")
@@ -395,6 +407,59 @@ def find_and_read_a_call(stack: Stack) -> None:
     if (status, content_type, size) != (200, "audio/mpeg", FIXTURE_BYTES):
         raise StepFailed(f"Listen answered {status} {content_type} with {size} bytes")
     print(f"200 audio/mpeg, {size} bytes, as Ravon sent it")
+
+
+def people_on(stack: Stack, rid: int) -> list[tuple[str, str]]:
+    attributions = stack.web.get(f"/api/v1/calls/{rid}").json()["attributions"]
+    return [(a["status"], a["method"]) for a in attributions]
+
+
+def attribution(stack: Stack, person: int) -> None:
+    """Call attribution on the real stack (add-call-attribution 7.1)."""
+    step("the name in the greeting makes each call a Maybe for that person")
+    for rid in (AUTO_CALL, MISSED_CALL):
+        if people_on(stack, rid) != [("maybe", "name")]:
+            raise StepFailed(f"call {rid} attributions: {people_on(stack, rid)}")
+    listed = stack.web.get("/api/v1/calls", params={"person": person, "maybe": "true"}).json()
+    if sorted(c["id"] for c in listed["calls"]) != sorted((AUTO_CALL, MISSED_CALL)):
+        raise StepFailed(f"the Maybe filter shows {[c['id'] for c in listed['calls']]}")
+    print("both calls are Maybe by name, and both show under the person's Maybe filter")
+
+    step("Confirm makes one Confident; Not removes the person from the other")
+    confirm = stack.web.post(
+        f"/api/v1/calls/{AUTO_CALL}/attributions/{person}/confirm", headers=WRITE
+    )
+    reject = stack.web.delete(f"/api/v1/calls/{MISSED_CALL}/attributions/{person}", headers=WRITE)
+    if confirm.status_code != 200 or reject.status_code != 200:
+        raise StepFailed(
+            f"confirm {confirm.status_code} {confirm.text};"
+            f" reject {reject.status_code} {reject.text}"
+        )
+    print("confirmed and rejected")
+
+    step("changing the person's spellings rematches without undoing either decision")
+    edit = stack.web.put(
+        f"/api/v1/admin/profiles/{person}",
+        headers=WRITE,
+        json={"display_name": "Nolan", "variants": ["Nolan", "Nolen"]},
+    )
+    if edit.status_code != 200:
+        raise StepFailed(f"edit profile: HTTP {edit.status_code} {edit.text}")
+    wait_until(
+        "the rematch to finish",
+        lambda: stack.one("SELECT count(*) FROM jobs WHERE type = 'rematch'") == 0,
+        120,
+    )
+    if (people_on(stack, AUTO_CALL), people_on(stack, MISSED_CALL)) != (
+        [("confident", "manual")],
+        [],
+    ):
+        raise StepFailed(
+            f"after the rematch: {people_on(stack, AUTO_CALL)} and {people_on(stack, MISSED_CALL)}"
+        )
+    if stack.one(f"SELECT status FROM attributions WHERE call_id = {MISSED_CALL}") != "rejected":  # noqa: S608
+        raise StepFailed("the rejection was not kept")
+    print("still Confident and still rejected after the rematch")
 
 
 def check_ravon_now(stack: Stack) -> None:

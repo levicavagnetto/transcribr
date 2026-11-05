@@ -58,7 +58,7 @@ Voice tasks 1.1, 1.3, 2.3 to 2.5, 3.1, 4.1, 4.3, 5.1, 6.1, 6.3 and 6.4 were buil
 
 ## 7. End-to-end checks
 
-- [ ] 7.1 Extend the compose smoke test: the admin creates a profile; a new call with the name in the greeting becomes Maybe by name; confirming it makes it Confident; a rejected match stays rejected after a name-variant change; verify that it passes in the `check` script
+- [x] 7.1 Extend the compose smoke test: the admin creates a profile; a new call with the name in the greeting becomes Maybe by name; confirming it makes it Confident; a rejected match stays rejected after a name-variant change; verify that it passes in the `check` script
 - [ ] 7.2 With the user, run the instance on the shop PC for one working day with the service writer's profile set up, then review his filter and the Maybe filter together, count correct, missed and wrong attributions, and record the results in the change notes
 
 ## Workflow follow-up
