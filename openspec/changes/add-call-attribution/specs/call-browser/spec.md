@@ -18,19 +18,15 @@ The call list SHALL filter by person, Maybe and Unassigned, combined with the st
 - **THEN** only Nolan's calls whose transcript contains "lift kit" are shown
 
 ### Requirement: Attribution on the call screen
-A call's screen SHALL show each attributed person with confidence, method, the name heard and its time, and the voice presence score. Anyone on the shop network SHALL be able to claim the call for a person, reject a person, and confirm a Maybe, without logging in. The logged-in admin SHALL also be able to tick transcript lines and enroll them for a person.
+A call's screen SHALL show each attributed person with confidence, method, and for automatic matches the name heard and its time. Anyone on the shop network SHALL be able to claim the call for a person, reject a person, and confirm a Maybe, without logging in.
 
 #### Scenario: Why a call is Nolan's
-- **WHEN** a user opens a call attributed to Nolan by name and voice
-- **THEN** the screen shows the name heard with its time and Nolan's voice presence score
+- **WHEN** a user opens a call attributed to Nolan by name
+- **THEN** the screen shows Nolan as Maybe, with the name heard and its time
 
 #### Scenario: Call actions without login
 - **WHEN** a staff member who is not logged in as admin opens a call
-- **THEN** they can claim, reject or confirm attributions, and they see no enrollment tick boxes
-
-#### Scenario: Admin enrolls from the call screen
-- **WHEN** the logged-in admin opens a transcribed call
-- **THEN** each line with a voiceprint has a tick box, and "Enroll as <person>" adds the ticked lines to that person's voice profile
+- **THEN** they can claim, reject or confirm attributions
 
 ### Requirement: Person filter in the call API
 The call list API SHALL accept a person, Maybe or Unassigned filter, and SHALL return each call's attributions, so clients such as a future MCP server can list one person's calls.
