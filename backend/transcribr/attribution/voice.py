@@ -22,10 +22,10 @@ from transcribr.timeutil import to_iso, utcnow
 
 type Vector = npt.NDArray[np.float32]
 
-# Provisional; calibration on real calls (tasks 3.1) may change all three.
+# MIN_PRESENCE_SECONDS set by calibration on 2026-11-05 (design D9); the usability rule kept.
 MIN_CALLS = 3
 MIN_SECONDS = 30.0
-MIN_PRESENCE_SECONDS = 4.0
+MIN_PRESENCE_SECONDS = 2.0
 
 
 def from_blob(blob: bytes) -> Vector:

@@ -55,7 +55,7 @@ A profile SHALL have name evidence in a call when one of its name variants appea
 - **THEN** that profile has no name evidence for the call
 
 ### Requirement: Voice presence
-For each usable voice profile, the instance SHALL score how strongly the profile's voice is present anywhere in a call, from the call's stored line voiceprints, without deciding which lines that person said. A call needs a minimum number of seconds of matching speech (provisionally 4, set by calibration) before the profile counts as present. A presence score at or above the instance's high threshold is a strong voice match; a score between the low and high thresholds is a weak voice match.
+For each usable voice profile, the instance SHALL score how strongly the profile's voice is present anywhere in a call, from the call's stored line voiceprints, without deciding which lines that person said. A call needs a minimum number of seconds of matching speech (2, set by calibration) before the profile counts as present. A presence score at or above the instance's high threshold is a strong voice match; a score between the low and high thresholds is a weak voice match.
 
 #### Scenario: Strong voice match
 - **WHEN** at least the minimum presence of a call's speech scores at or above the high threshold against Nolan's voice profile

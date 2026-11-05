@@ -140,12 +140,12 @@ RESEARCH_PROMPT = register(
 VOICE_THRESHOLD_MESSAGE = "Each voice threshold must be a number from 0 to 1."
 _THRESHOLD = TypeAdapter(Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)])
 
-# Provisional: calibration on real calls (add-call-attribution 3.1) sets the real defaults.
+# Defaults from calibration on real calls, 2026-11-05 (add-call-attribution design D9).
 VOICE_LOW = register(
     Setting(
         key="voice_threshold_low",
         adapter=_THRESHOLD,
-        default=0.50,
+        default=0.60,
         label="Weak voice match from",
         message=VOICE_THRESHOLD_MESSAGE,
     )
@@ -154,7 +154,7 @@ VOICE_HIGH = register(
     Setting(
         key="voice_threshold_high",
         adapter=_THRESHOLD,
-        default=0.65,
+        default=0.70,
         label="Strong voice match from",
         message=VOICE_THRESHOLD_MESSAGE,
     )

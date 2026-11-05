@@ -68,13 +68,13 @@ Mockups (People, and attribution on the Calls and Call screens): see `docs/archi
 - **Centering:** every stored voiceprint shares one large component from the phone channel and codec. On live data the mean of all line voiceprints had length 0.91, every call scored 0.85 to 0.98 against an enrolled person, and voice matched almost every call. So before any comparison, each voiceprint has the **instance mean** subtracted and is renormalized to unit length.
   - The instance mean is the duration-weighted mean of every stored line voiceprint. It's computed when matching or calibration starts and never stored.
   - Lines transcribed later shift it slightly; calls keep their scores until the next rematch, which any enrollment or threshold change queues.
-  - Centering moved scores on live data to roughly -0.55 to 0.83, so the 0.50 / 0.65 thresholds are provisional until calibration (D9).
+  - Centering moved scores on live data to roughly -0.55 to 0.83, so the thresholds were recalibrated (D9).
 - **Profile centroid:** the L2-normalized, duration-weighted mean of its enrolled lines' centered voiceprints. It's computed from the current samples whenever it's needed and never stored, so it can't fall out of step with them (for example when a re-transcribed call takes its enrolled lines with it).
-- **When a profile is usable:** enrolled lines from 3 or more distinct calls, totaling 30 or more seconds. These numbers are provisional; calibration (D9) may change both.
+- **When a profile is usable:** enrolled lines from 3 or more distinct calls, totaling 30 or more seconds. Calibration (D9) kept both.
 - **Line score:** the cosine similarity between a line's centered voiceprint and a usable centroid.
 - **Presence score** of a call for a profile:
   - It's the highest score `s` at which the call's lines scoring `s` or more add up to at least the **minimum presence**.
-  - The minimum presence is provisionally 4 seconds; calibration sets it.
+  - The minimum presence is 2 seconds, set by calibration (D9).
   - A call with less voiceprinted speech than that has no presence score.
 - **Bands:** a presence score at or above the high threshold is strong; at or above low but below high is weak.
 - Line scores are working values only; they are never stored per line or shown.
@@ -132,6 +132,13 @@ Implemented exactly as the `call-attribution` "Automatic attribution rules" requ
   - **high:** where 95% or more of "him" presence scores sit above
 - The usability rule (3 calls, 30 seconds) is checked against the same data.
 - The chosen numbers and their reasoning go in the change notes, and become the defaults.
+
+**Results (2026-11-05, profile Nolan, enrolled from 3 calls, centered scoring):**
+- Labelled calls from 2026-11-04 16:00 to 2026-11-05 13:15: 11 with Nolan (added by hand), 32 without (6 rejected by hand, 26 with no Nolan chip, checked by the user). The enrolled call 26578963 was left out.
+- Presence at 2 s separated the groups best. Nolan: 0.53 to 0.82, 10 of 11 at 0.61 or more. Not Nolan: -0.49 to 0.60, except 26578631 (0.78, confirmed not Nolan) and 26579023 (0.69). Longer minimums lowered Nolan's short calls more than the others (26577789 drops to 0.17 at 8 s).
+- **Chosen:** minimum presence 2 s, low 0.60 (just above the main not-Nolan group), high 0.70. On these calls: 7 of 11 Nolan calls strong, 3 weak (Maybe), 1 missed (26577754, 0.53); 30 of 32 others untouched, one false strong and one false Maybe.
+- **Usability rule kept** at 3 calls and 30 s: the 3-call profile already gives this spread. A bad enrollment (26569647, which scored 0.15 against the rest) dragged the profile down, so the People screen's Remove matters.
+- Voice alone stays a backstop: manual Not <person> is how the false strong match is fixed.
 
 ### D10. UI
 - **People screen (`/admin/people`):**

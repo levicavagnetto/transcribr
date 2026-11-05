@@ -6,8 +6,8 @@ from transcribr.attribution.voice import MIN_PRESENCE_SECONDS, band, line_scores
 LOW, HIGH = 0.5, 0.7
 
 
-def test_the_minimum_presence_is_provisionally_four_seconds() -> None:
-    assert MIN_PRESENCE_SECONDS == 4.0
+def test_the_calibrated_minimum_presence_is_two_seconds() -> None:
+    assert MIN_PRESENCE_SECONDS == 2.0
 
 
 @pytest.mark.parametrize(
@@ -24,7 +24,7 @@ def test_the_minimum_presence_is_provisionally_four_seconds() -> None:
     ],
 )
 def test_presence_score(lines: list[tuple[float, float]], expected: float | None) -> None:
-    assert presence_score(lines) == expected
+    assert presence_score(lines, 4.0) == expected  # the rule at a 4 s minimum
 
 
 def test_the_minimum_presence_can_be_changed() -> None:
