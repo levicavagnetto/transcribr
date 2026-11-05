@@ -9,11 +9,12 @@ import json
 import logging
 import sqlite3
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from transcribr.attribution.names import find_name, opening
 from transcribr.attribution.profiles import ProfileError, Profiles
+from transcribr.attribution.recorded import RecordedMessage, learn_from
 from transcribr.attribution.rules import Decision, decide
 from transcribr.store.db import transaction
 from transcribr.timeutil import to_iso, utcnow
@@ -26,18 +27,31 @@ class MatchContext:
     """Everything about the people that matching needs, read once per job."""
 
     variants: dict[int, tuple[str, ...]]
+    recorded: RecordedMessage = field(default_factory=RecordedMessage)
+
+    @property
+    def all_variants(self) -> tuple[str, ...]:
+        return tuple(v for variants in self.variants.values() for v in variants)
 
 
 def load_context(conn: sqlite3.Connection) -> MatchContext:
-    return MatchContext({p.id: p.variants for p in Profiles(conn).everyone()})
+    return MatchContext({p.id: p.variants for p in Profiles(conn).everyone()}, learn_from(conn))
 
 
-def _call_words(conn: sqlite3.Connection, call_id: int) -> list[tuple[float, str]]:
-    """(start, word) for every word of a call; a line without word times uses its start."""
+def _call_words(
+    conn: sqlite3.Connection, call_id: int, context: MatchContext | None = None
+) -> list[tuple[float, str]]:
+    """(start, word) for every word of a call; a line without word times uses its start.
+
+    With a context, recorded-message lines are left out, so they don't use up the opening.
+    """
     words: list[tuple[float, str]] = []
+    names = context.all_variants if context else ()
     for r in conn.execute(
         "SELECT start_s, text, words FROM segments WHERE call_id = ? ORDER BY idx", (call_id,)
     ):
+        if context and context.recorded.is_recorded(str(r["text"]), names):
+            continue
         timed: list[list[object]] = json.loads(r["words"] or "[]")
         if timed:
             words.extend((float(str(w[0])), str(w[2])) for w in timed)
@@ -50,7 +64,7 @@ def attribute_call(
     conn: sqlite3.Connection, call_id: int, context: MatchContext, now: datetime
 ) -> list[Decision]:
     """Rewrite one call's automatic attributions. The caller holds the write transaction."""
-    tokens = opening(_call_words(conn, call_id))
+    tokens = opening(_call_words(conn, call_id, context))
     names = {
         profile_id: find_name(tokens, variants) for profile_id, variants in context.variants.items()
     }

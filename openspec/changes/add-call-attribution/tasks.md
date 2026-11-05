@@ -60,7 +60,7 @@ Voice tasks 1.1, 1.3, 2.3 to 2.5, 3.1, 4.1, 4.3, 5.1, 6.1, 6.3 and 6.4 were buil
 
 Found on the working day in 7.2: both of Nolan's missed calls had his greeting after the store's recorded hold message.
 
-- [ ] 9.1 Find recorded-message lines from the instance's own transcripts and leave them out of the 30-second opening, never skipping a line with a name variant (design D2); verify unit tests for "Greeting after the hold message", a name line that repeats across calls, and short repeated fragments, and that a rematch over the stored calls finds the two missed calls from 7.2 without adding a wrong match
+- [x] 9.1 Find recorded-message lines from the instance's own transcripts and leave them out of the 30-second opening, never skipping a line with a name variant (design D2); verify unit tests for "Greeting after the hold message", a name line that repeats across calls, and short repeated fragments, and that a rematch over the stored calls finds the two missed calls from 7.2 without adding a wrong match
 
 ## 7. End-to-end checks
 
