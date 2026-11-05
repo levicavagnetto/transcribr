@@ -56,6 +56,12 @@ Voice tasks 1.1, 1.3, 2.3 to 2.5, 3.1, 4.1, 4.3, 5.1, 6.1, 6.3 and 6.4 were buil
 - [x] 8.5 Remove the line tick boxes and Enroll bar from the Call view, the voice progress, enrolled lines and consent note from the People screen, the voice score from "People on this call", and the Voice matching section from Settings; verify the updated component tests
 - [x] 8.6 Update `docs/architecture.md` and the README for name-only attribution without voice data, and verify that the `check` script passes
 
+## 9. Skip the recorded hold message (design D2)
+
+Found on the working day in 7.2: both of Nolan's missed calls had his greeting after the store's recorded hold message.
+
+- [ ] 9.1 Find recorded-message lines from the instance's own transcripts and leave them out of the 30-second opening, never skipping a line with a name variant (design D2); verify unit tests for "Greeting after the hold message", a name line that repeats across calls, and short repeated fragments, and that a rematch over the stored calls finds the two missed calls from 7.2 without adding a wrong match
+
 ## 7. End-to-end checks
 
 - [x] 7.1 Extend the compose smoke test: the admin creates a profile; a new call with the name in the greeting becomes Maybe by name; confirming it makes it Confident; a rejected match stays rejected after a name-variant change; verify that it passes in the `check` script

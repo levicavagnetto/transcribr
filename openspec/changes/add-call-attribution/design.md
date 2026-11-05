@@ -53,7 +53,14 @@ Mockups (People, and attribution on the Calls and Call screens): see `docs/archi
 - **Deleting a profile** cascades to its variants and all its attributions, manual ones included, since the person no longer exists.
 
 ### D2. Name evidence
-- Take the words whose start time falls in the first 30 seconds of speech, measured from the first word, not from the start of the recording.
+- Take the words whose start time falls in the first 30 seconds of speech, measured from the first word, not from the start of the recording, and not counting recorded-message lines.
+- **Recorded-message lines:** the store's greeting and hold message are the same audio on every held call, so their transcript lines repeat across many calls, cut off wherever someone picks up.
+  - Read once per matching job: the first 3 minutes of every transcribed call, as normalized word 5-grams, counting how many distinct calls each 5-gram appears in.
+  - A line of 5 or more words is recorded when at least 80% of its 5-grams appear in 5 or more calls. A shorter line is recorded when its whole normalized text is a line in 5 or more calls.
+  - A line containing any profile's name variant is never recorded, so a staff greeting like "this is Nolan" is always kept, however often it's said.
+  - Staff lines without a name may also repeat ("can I put you on a quick hold?"). Skipping them only lengthens the window by a few seconds.
+  - Why not a setting: the message changes when the store re-records it, and this follows it without anyone remembering to update the app.
+  - **Measured on 2026-11-05:** 40 of 108 transcribed calls started with the recorded message. Nolan greeted held callers at 58 s and 72 s; on other people's calls his name came up at 0.8 s, 10.9 s and 196 s.
 - Normalize them: lowercase, strip punctuation, fold accents.
 - Fuzzy-match each normalized variant against word n-grams of the same length with `rapidfuzz` `fuzz.ratio` ≥ 88.
 - **Why only the opening:** it's where staff say their name, and later mentions ("ask Nolan") are usually about someone, not by them.

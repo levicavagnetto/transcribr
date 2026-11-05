@@ -18,15 +18,23 @@ The admin SHALL be able to create, edit and delete people profiles in the admin 
 - **THEN** all its attributions are deleted, and its calls revert to Unassigned unless another person is attributed
 
 ### Requirement: Name evidence
-A profile SHALL have name evidence in a call when one of its name variants appears in the transcript within the first 30 seconds of speech. Matching SHALL tolerate small spelling differences in the transcribed name.
+A profile SHALL have name evidence in a call when one of its name variants appears in the transcript within the first 30 seconds of speech. A recorded message that plays on many calls, such as the store's greeting or hold message, SHALL NOT count toward those 30 seconds, and SHALL be found from the instance's own transcripts without configuration. Matching SHALL tolerate small spelling differences in the transcribed name.
 
 #### Scenario: Name in greeting
 - **WHEN** a call's transcript starts "Thanks for calling Tire Pros, this is Nolan"
 - **THEN** the Nolan profile has name evidence for that call
 
+#### Scenario: A repeated greeting with a name
+- **WHEN** Nolan answers "Thanks for calling Tire Pros, this is Nolan" the same way on many calls
+- **THEN** that line is never treated as a recorded message, and the Nolan profile has name evidence
+
 #### Scenario: Name only late in the call
 - **WHEN** a profile's name appears only after the first 30 seconds of speech
 - **THEN** that profile has no name evidence for the call
+
+#### Scenario: Greeting after the hold message
+- **WHEN** a caller hears the store's recorded hold message for 70 seconds and then Nolan answers "this is Nolan"
+- **THEN** the Nolan profile has name evidence for that call
 
 ### Requirement: Automatic attribution rules
 After a call is Transcribed, each profile with name evidence SHALL be attributed to the call as Maybe with method name, recording the name heard and its time. Automatic matching SHALL NOT make an attribution Confident; only a person's decision does. A profile without name evidence SHALL get no automatic attribution.
