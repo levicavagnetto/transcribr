@@ -112,6 +112,12 @@ Removed with voice matching. The measurements that led to removing it are in D3.
 - **So:** a name hit was right 11 of 13 times (85%). That is why automatic matches stay Maybe. About a third of his calls need Add a person.
 - **Possible follow-ups, not in this change:** measuring the window from the end of the recorded greeting; profiles for Parker and Zach, so their calls are found too.
 
+**Working day (task 7.2, 2026-11-05, 1:29 PM to 4:38 PM, no manual decisions made beforehand):**
+- 15 calls were transcribed. The user confirmed who answered each; 3 couldn't be placed from the transcript (26579746, 26579896, 26580126) and are left out.
+- **Nolan's calls (4):** 2 were found as Maybe by name (26580141, 26580174). 2 were missed (26579885, 26580164): the caller sat through the store's recorded hold message, and he greeted them at 72 s and 78 s, after the 30-second window.
+- **Other people's calls (8, answered by Miles, Gibson, Parker and Zach):** no wrong matches.
+- **So:** no wrong matches on the day; misses come from the recorded hold message pushing the greeting late. Measuring the window from the end of the recorded message is the most useful next improvement (a follow-up change).
+
 ### D10. UI
 - **People screen (`/admin/people`):**
   - the list of people, with name-variant chips, Edit and Delete
