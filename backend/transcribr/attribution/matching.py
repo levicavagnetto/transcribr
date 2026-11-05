@@ -1,6 +1,6 @@
 """Attribution rows in the database: automatic matching, manual decisions and rematching.
 
-Automatic matching reads stored transcript words and line voiceprints only, so it never needs
+Automatic matching reads stored transcript words only, so it never needs
 the audio, Ravon or a model (design D6). It deletes and rewrites `source = 'auto'` rows only;
 manual rows are never touched by it.
 """
@@ -14,22 +14,11 @@ from datetime import datetime
 
 from transcribr.attribution.names import find_name, opening
 from transcribr.attribution.profiles import ProfileError, Profiles
-from transcribr.attribution.rules import Decision, Evidence, decide
-from transcribr.attribution.voice import (
-    Vector,
-    VoiceSamples,
-    call_prints,
-    instance_mean,
-    line_scores,
-    presence_score,
-)
-from transcribr.settings import VOICE_HIGH, VOICE_LOW, Settings
+from transcribr.attribution.rules import Decision, decide
 from transcribr.store.db import transaction
 from transcribr.timeutil import to_iso, utcnow
 
 log = logging.getLogger(__name__)
-
-REMATCH_SETTINGS = frozenset({VOICE_LOW.key, VOICE_HIGH.key})
 
 
 @dataclass(frozen=True)
@@ -37,22 +26,10 @@ class MatchContext:
     """Everything about the people that matching needs, read once per job."""
 
     variants: dict[int, tuple[str, ...]]
-    voices: dict[int, Vector]  # usable voice profiles only, centered on mean
-    mean: Vector | None  # the instance mean every voiceprint is centered on
-    low: float
-    high: float
 
 
 def load_context(conn: sqlite3.Connection) -> MatchContext:
-    settings = Settings(conn)
-    mean = instance_mean(conn)
-    return MatchContext(
-        {p.id: p.variants for p in Profiles(conn).everyone()},
-        VoiceSamples(conn).usable_voices(mean),
-        mean,
-        settings.get(VOICE_LOW),
-        settings.get(VOICE_HIGH),
-    )
+    return MatchContext({p.id: p.variants for p in Profiles(conn).everyone()})
 
 
 def _call_words(conn: sqlite3.Connection, call_id: int) -> list[tuple[float, str]]:
@@ -74,16 +51,8 @@ def attribute_call(
 ) -> list[Decision]:
     """Rewrite one call's automatic attributions. The caller holds the write transaction."""
     tokens = opening(_call_words(conn, call_id))
-    prints = call_prints(conn, call_id, context.mean)
-    evidence = {
-        profile_id: Evidence(
-            find_name(tokens, variants),
-            profile_id in context.voices,
-            presence_score(line_scores(prints, context.voices[profile_id]))
-            if profile_id in context.voices
-            else None,
-        )
-        for profile_id, variants in context.variants.items()
+    names = {
+        profile_id: find_name(tokens, variants) for profile_id, variants in context.variants.items()
     }
     manual = {
         r[0]
@@ -92,20 +61,19 @@ def attribute_call(
             (call_id,),
         )
     }
-    decisions = decide(evidence, low=context.low, high=context.high, manual=manual)
+    decisions = decide(names, manual=manual)
     conn.execute("DELETE FROM attributions WHERE call_id = ? AND source = 'auto'", (call_id,))
     conn.executemany(
         "INSERT INTO attributions (call_id, profile_id, status, source, method, name_heard,"
-        " name_at_s, voice_score, updated_at) VALUES (?, ?, ?, 'auto', ?, ?, ?, ?, ?)",
+        " name_at_s, updated_at) VALUES (?, ?, ?, 'auto', ?, ?, ?, ?)",
         [
             (
                 call_id,
                 d.profile_id,
                 d.status,
                 d.method,
-                d.name.heard if d.name else None,
-                d.name.at_s if d.name else None,
-                d.voice_score,
+                d.name.heard,
+                d.name.at_s,
                 to_iso(now),
             )
             for d in decisions

@@ -46,7 +46,8 @@ def test_empty_database_gets_every_table_and_index(conn: sqlite3.Connection) -> 
     columns = {r[1] for r in conn.execute("PRAGMA table_info(calls)")}
     assert "failed_at" in columns
     segment_columns = {r[1] for r in conn.execute("PRAGMA table_info(segments)")}
-    assert "voiceprint" in segment_columns
+    assert "voiceprint" not in segment_columns
+    assert "voice_samples" not in names(conn, "table")
     assert "speaker" not in segment_columns
     assert "speakers" not in names(conn, "table")
     assert names(conn, "table") >= EXPECTED_TABLES
@@ -102,15 +103,15 @@ def test_segments_are_searchable_and_follow_edits(conn: sqlite3.Connection) -> N
     assert count.fetchone()[0] == 0
 
 
-def test_deleting_a_call_removes_its_transcript_and_voiceprints(conn: sqlite3.Connection) -> None:
+def test_deleting_a_call_removes_its_transcript(conn: sqlite3.Connection) -> None:
     add_call(conn)
     conn.execute(
         "INSERT INTO transcripts (call_id, language, model, transcribed_at)"
         " VALUES (26541125, 'en', 'small.en', 't')"
     )
     conn.execute(
-        "INSERT INTO segments (call_id, idx, start_s, end_s, text, voiceprint)"
-        " VALUES (26541125, 0, 0.0, 2.5, 'hello', x'00')"
+        "INSERT INTO segments (call_id, idx, start_s, end_s, text)"
+        " VALUES (26541125, 0, 0.0, 2.5, 'hello')"
     )
     conn.execute("DELETE FROM calls")
     assert conn.execute("SELECT count(*) FROM transcripts").fetchone()[0] == 0

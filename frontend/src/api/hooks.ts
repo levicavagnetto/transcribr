@@ -71,15 +71,14 @@ export interface PassagePart {
   hit: boolean;
 }
 
-// A person on a call. Rejected people are never listed; voiceprints never leave the server.
+// A person on a call. Rejected people are never listed.
 export interface Attribution {
   profile_id: number;
   display_name: string;
   status: "confident" | "maybe";
-  method: "name" | "voice" | "name+voice" | "manual";
+  method: "name" | "manual";
   name_heard: string | null;
   name_at_s: number | null;
-  voice_score: number | null;
 }
 
 export interface CallSummary {
@@ -119,7 +118,6 @@ export interface Segment {
   start_s: number;
   end_s: number;
   text: string;
-  has_voiceprint: boolean; // whether the admin can enroll this line for a person's voice
 }
 
 export interface Transcript {
@@ -155,26 +153,12 @@ export interface People {
   unassigned_calls: number;
 }
 
-export interface VoiceProgress {
-  calls: number;
-  seconds: number;
-  usable: boolean;
-  calls_needed: number;
-  seconds_needed: number;
-}
-
 export interface Profile {
   id: number;
   display_name: string;
   variants: string[];
   created_at: string;
-  voice: VoiceProgress;
-  found: { name: number; voice: number; name_and_voice: number; manual: number; maybe: number };
-}
-
-export interface Samples {
-  voice: VoiceProgress;
-  calls: { call_id: number; start_local: string; seconds: number; lines: { idx: number; start_s: number; end_s: number }[] }[];
+  found: { name: number; manual: number; maybe: number };
 }
 
 export const keys = {
@@ -189,7 +173,6 @@ export const keys = {
   researchPrompt: ["research-prompt"] as const,
   people: ["people"] as const,
   profiles: ["admin", "profiles"] as const,
-  samples: (id: number) => ["admin", "profiles", id, "samples"] as const,
 };
 
 export function useStatus() {
@@ -387,10 +370,6 @@ export function useProfiles(enabled = true) {
   });
 }
 
-export function useSamples(id: number) {
-  return useQuery({ queryKey: keys.samples(id), queryFn: () => api.get<Samples>(`/admin/profiles/${id}/samples`) });
-}
-
 export interface ProfileIn {
   display_name: string;
   variants: string[];
@@ -401,11 +380,3 @@ export const useCreateProfile = () =>
 export const useUpdateProfile = () =>
   useAttributionChange(({ id, ...body }: ProfileIn & { id: number }) => api.put<Profile>(`/admin/profiles/${id}`, body));
 export const useDeleteProfile = () => useAttributionChange((id: number) => api.delete(`/admin/profiles/${id}`));
-export const useEnroll = () =>
-  useAttributionChange(({ person, call, lines }: { person: number; call: number; lines: number[] }) =>
-    api.post<Samples>(`/admin/profiles/${person}/samples`, { call_id: call, lines }),
-  );
-export const useRemoveSamples = () =>
-  useAttributionChange(({ person, call }: { person: number; call: number }) =>
-    api.delete<Samples>(`/admin/profiles/${person}/samples/${call}`),
-  );

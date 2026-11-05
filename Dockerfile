@@ -13,7 +13,7 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
-# --- 2. The speech and speaker-embedding models, pinned and checked by SHA-256 -----------
+# --- 2. The speech model, pinned and checked by SHA-256 ---------------------------------
 # Only models.py feeds this stage, so code changes don't download the models again.
 FROM --platform=$BUILDPLATFORM ${PYTHON_IMAGE} AS models
 RUN pip install --no-cache-dir --root-user-action=ignore httpx==0.28.1

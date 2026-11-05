@@ -40,11 +40,9 @@ def add_call(
             (rid, int(no_speech)),
         )
         for idx, text in enumerate(lines or []):
-            voiceprint = b"\x01\x02SECRET-VOICEPRINT-BYTES" if idx % 2 == 0 else None
             conn.execute(
-                "INSERT INTO segments (call_id, idx, start_s, end_s, text, voiceprint)"
-                " VALUES (?, ?, ?, ?, ?, ?)",
-                (rid, idx, idx * 10.0, idx * 10.0 + 8, text, voiceprint),
+                "INSERT INTO segments (call_id, idx, start_s, end_s, text) VALUES (?, ?, ?, ?, ?)",
+                (rid, idx, idx * 10.0, idx * 10.0 + 8, text),
             )
 
 
@@ -236,13 +234,11 @@ def test_a_no_speech_call_has_an_empty_transcript(seeded: Api) -> None:
 def test_the_transcript_is_timed_lines_without_speakers(seeded: Api) -> None:
     body = seeded.client.get("/api/v1/calls/90000002/transcript").json()
     assert "speakers" not in body
-    assert body["segments"][0]["has_voiceprint"] is True
     assert body["segments"][1] == {
         "idx": 1,
         "start_s": 10.0,
         "end_s": 18.0,
         "text": "We want a lift kit for a Tacoma.",
-        "has_voiceprint": False,
     }
 
 
@@ -255,7 +251,7 @@ def test_unknown_calls_and_missing_transcripts_say_which(seeded: Api) -> None:
     assert (waiting.status_code, waiting.json()["error"]["code"]) == (404, "no_transcript")
 
 
-def test_no_response_contains_voiceprint_data(seeded: Api) -> None:
+def test_no_response_contains_voice_data(seeded: Api) -> None:
     paths = [
         "/api/v1/calls",
         "/api/v1/calls?q=lift+kit",
@@ -266,8 +262,7 @@ def test_no_response_contains_voiceprint_data(seeded: Api) -> None:
     for path in paths:
         text = seeded.client.get(path).text
         assert "fingerprint" not in text.lower(), path
-        assert '"voiceprint"' not in text, path
-        assert "SECRET-VOICEPRINT" not in text, path
+        assert "voice" not in text.lower(), path
         json.loads(text)  # and every one is plain JSON
 
 

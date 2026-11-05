@@ -1,6 +1,6 @@
 """People profiles: a display name and the name variants the transcript might contain.
 
-Deleting a profile deletes its name variants, voice samples and every attribution to it
+Deleting a profile deletes its name variants and every attribution to it
 (the database cascades), so its calls fall back to Unassigned unless someone else is on them.
 Every change queues a rematch of all calls (design D6).
 """

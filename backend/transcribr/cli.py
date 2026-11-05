@@ -41,14 +41,6 @@ def build_parser() -> argparse.ArgumentParser:
         "worker-health", help="exit 0 if the worker's heartbeat is recent (Docker health check)"
     )
     commands.add_parser("backup", help="write a copy of the database to the backups folder")
-    calibrate = commands.add_parser(
-        "calibrate",
-        help="score stored calls against one person's voice profile (no Ravon, no audio)",
-    )
-    calibrate.add_argument("--profile", type=int, required=True, help="the person's profile ID")
-    calibrate.add_argument(
-        "--calls", type=int, nargs="+", required=True, help="call IDs to score", metavar="ID"
-    )
     fetch = commands.add_parser("fetch-models", help="download and verify the speech models")
     fetch.add_argument(
         "--dest", type=Path, default=None, help="folder (default: TRANSCRIBR_MODELS_DIR)"
@@ -80,8 +72,6 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: PLR0911 - one retur
         return _worker_health()
     if args.command == "backup":
         return _backup()
-    if args.command == "calibrate":
-        return _calibrate(args.profile, args.calls)
     if args.command == "fetch-models":
         from transcribr.config import load_config  # noqa: PLC0415
         from transcribr.models import ModelError, fetch_models, verify_models  # noqa: PLC0415
@@ -165,28 +155,6 @@ def _backup() -> int:
     finally:
         conn.close()
     print(f"Backup written to {target}")
-    return 0
-
-
-def _calibrate(profile_id: int, call_ids: list[int]) -> int:
-    from transcribr.attribution.calibrate import write_report  # noqa: PLC0415
-    from transcribr.attribution.profiles import ProfileError  # noqa: PLC0415
-    from transcribr.config import load_config  # noqa: PLC0415
-    from transcribr.timeutil import utcnow  # noqa: PLC0415
-
-    conn = _open_database()
-    if conn is None:
-        return 1
-    try:
-        reports = load_config().data_dir / "reports"
-        path, text = write_report(conn, profile_id, call_ids, reports, utcnow())
-    except ProfileError as error:
-        print(f"calibrate: {error.message}", file=sys.stderr)
-        return 1
-    finally:
-        conn.close()
-    print(text, end="")
-    print(f"Report written to {path}", file=sys.stderr)
     return 0
 
 

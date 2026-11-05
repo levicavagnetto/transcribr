@@ -3,29 +3,22 @@ from pathlib import Path
 
 import pytest
 
-from tests.attribution.conftest import add_call, voice
+from tests.attribution.conftest import add_call
 from tests.clock import FakeClock
 from tests.pipeline.test_runner import CALL, Rig
 from transcribr.attribution import matching
-from transcribr.attribution.matching import Attributions, load_context, rematch_all
+from transcribr.attribution.matching import Attributions, rematch_all
 from transcribr.attribution.profiles import ProfileError, Profiles
 from transcribr.attribution.queue import REMATCH, request_rematch
-from transcribr.attribution.voice import VoiceSamples, call_prints
 from transcribr.pipeline.process import JobRunner, PipelineResult
-from transcribr.pipeline.transcribe import Word
-from transcribr.pipeline.voiceprint import Line
-from transcribr.settings import VOICE_HIGH, VOICE_LOW, Settings
-
-NOLAN_VOICE = voice(1.0, 0.1)
-CUSTOMER = voice(0.1, 1.0)
-DANA_VOICE = voice(0.0, 0.1, 1.0)
+from transcribr.pipeline.transcribe import Segment, Word
 
 
 def rows(conn: sqlite3.Connection, call_id: int) -> list[tuple[object, ...]]:
     return [
         tuple(r)
         for r in conn.execute(
-            "SELECT profile_id, status, source, method, name_heard, voice_score"
+            "SELECT profile_id, status, source, method, name_heard"
             " FROM attributions WHERE call_id = ? ORDER BY profile_id",
             (call_id,),
         )
@@ -40,8 +33,8 @@ def rematch_jobs(conn: sqlite3.Connection) -> list[tuple[object, ...]]:
 
 
 def add_named_call(conn: sqlite3.Connection, call_id: int, opening: str) -> None:
-    """A call whose only line is `opening`, without word times or voiceprints."""
-    add_call(conn, call_id, [(0.0, 3.0, None)])
+    """A call whose only line is `opening`, without word times."""
+    add_call(conn, call_id, [(0.0, 3.0)])
     conn.execute("UPDATE segments SET text = ? WHERE call_id = ?", (opening, call_id))
 
 
@@ -58,7 +51,7 @@ def test_claim_a_missed_call(conn: sqlite3.Connection, people: tuple[int, int]) 
     nolan, _ = people
     add_named_call(conn, 1, "hello who is this")
     Attributions(conn).claim(1, nolan)
-    assert rows(conn, 1) == [(nolan, "confident", "manual", "manual", None, None)]
+    assert rows(conn, 1) == [(nolan, "confident", "manual", "manual", None)]
 
 
 def test_reject_a_wrong_match_and_it_stays_rejected(
@@ -67,7 +60,7 @@ def test_reject_a_wrong_match_and_it_stays_rejected(
     nolan, _ = people
     add_named_call(conn, 1, "is Nolan there")
     rematch_all(conn, FakeClock().utcnow())
-    assert rows(conn, 1)[0][1:4] == ("confident", "auto", "name")
+    assert rows(conn, 1)[0][1:4] == ("maybe", "auto", "name")
 
     Attributions(conn).reject(1, nolan)
     rematch_all(conn, FakeClock().utcnow())
@@ -79,12 +72,12 @@ def test_confirm_a_maybe(conn: sqlite3.Connection, people: tuple[int, int]) -> N
     nolan, dana = people
     add_named_call(conn, 1, "hello")
     conn.execute(
-        "INSERT INTO attributions (call_id, profile_id, status, source, method, voice_score,"
-        " updated_at) VALUES (1, ?, 'maybe', 'auto', 'voice', 0.6, 't')",
+        "INSERT INTO attributions (call_id, profile_id, status, source, method, name_heard,"
+        " updated_at) VALUES (1, ?, 'maybe', 'auto', 'name', 'Nolan', 't')",
         (nolan,),
     )
     Attributions(conn).confirm(1, nolan)
-    assert rows(conn, 1) == [(nolan, "confident", "manual", "manual", None, 0.6)]
+    assert rows(conn, 1) == [(nolan, "confident", "manual", "manual", "Nolan")]
     with pytest.raises(ProfileError) as refused:
         Attributions(conn).confirm(1, nolan)  # already Confident
     assert refused.value.code == "not_maybe"
@@ -99,7 +92,7 @@ def test_claiming_keeps_the_evidence_already_found(
     add_named_call(conn, 1, "this is Nolan")
     rematch_all(conn, FakeClock().utcnow())
     Attributions(conn).claim(1, nolan)
-    assert rows(conn, 1) == [(nolan, "confident", "manual", "manual", "Nolan", None)]
+    assert rows(conn, 1) == [(nolan, "confident", "manual", "manual", "Nolan")]
 
 
 def test_manual_decisions_need_a_real_call_and_person(
@@ -126,72 +119,38 @@ def test_rematch_never_touches_manual_rows(
     rematch_all(conn, FakeClock().utcnow())
     assert [r[:3] for r in rows(conn, 1)] == [
         (nolan, "confident", "manual"),
-        (dana, "confident", "auto"),
+        (dana, "maybe", "auto"),
     ]
 
 
 # --- matching from stored data -------------------------------------------------------------
 
 
-def enroll_nolan(conn: sqlite3.Connection, nolan: int) -> None:
-    for call_id in (901, 902, 903):
-        add_call(conn, call_id, [(0.0, 12.0, NOLAN_VOICE)])
-        VoiceSamples(conn).add(nolan, call_id, [0])
-
-
-def test_voice_and_name_together(conn: sqlite3.Connection, people: tuple[int, int]) -> None:
-    nolan, dana = people
-    enroll_nolan(conn, nolan)
-    add_call(conn, 1, [(0.0, 6.0, NOLAN_VOICE), (6.5, 14.0, CUSTOMER)])  # outbound, no name
-    add_call(conn, 2, [(0.0, 3.0, None), (3.5, 9.0, CUSTOMER)])  # caller asks for Nolan
-    conn.execute("UPDATE segments SET text = 'is Nolan there' WHERE call_id = 2 AND idx = 0")
-    add_call(conn, 3, [(0.0, 9.0, CUSTOMER)])  # nobody we know
-
-    rematch_all(conn, FakeClock().utcnow())
-
-    assert rows(conn, 1) == [(nolan, "confident", "auto", "voice", None, pytest.approx(1.0))]
-    [(profile, status, _, method, heard, score)] = rows(conn, 2)
-    assert (profile, status, method, heard) == (nolan, "maybe", "name", "Nolan")
-    assert isinstance(score, float) and score < 0.5
-    assert rows(conn, 3) == []
-    assert dana not in {r[0] for r in rows(conn, 1)}
-
-
-def test_thresholds_come_from_the_settings(
+def test_names_in_the_opening_become_maybes(
     conn: sqlite3.Connection, people: tuple[int, int]
 ) -> None:
-    nolan, _ = people
-    enroll_nolan(conn, nolan)
-    add_call(conn, 1, [(0.0, 9.0, voice(1.0, 0.6))])  # sounds a bit like Nolan
-    for call_id, other in ((2, CUSTOMER), (3, DANA_VOICE), (4, voice(0.0, 0.0, 0.0, 1.0))):
-        add_call(conn, call_id, [(0.0, 20.0, other)])  # other voices on the line
-    context = load_context(conn)  # scores are centered on the instance mean
-    [(line, _)] = call_prints(conn, 1, context.mean)
-    score = float(line @ context.voices[nolan])
-    assert 0.2 < score < 0.9
+    nolan, dana = people
+    add_named_call(conn, 1, "Tire Pros this is Nolan")
+    add_named_call(conn, 2, "is Nolan there")  # a caller asking for him
+    add_named_call(conn, 3, "hello how can I help")  # nobody we know
 
-    Settings(conn).set_many({VOICE_LOW.key: score - 0.1, VOICE_HIGH.key: score + 0.05})
     rematch_all(conn, FakeClock().utcnow())
-    assert rows(conn, 1)[0][1:4] == ("maybe", "auto", "voice")
 
-    Settings(conn).set(VOICE_HIGH, score - 0.01)
-    rematch_all(conn, FakeClock().utcnow())
-    assert rows(conn, 1)[0][1:4] == ("confident", "auto", "voice")
-    assert load_context(conn).high == pytest.approx(score - 0.01)
+    assert rows(conn, 1) == [(nolan, "maybe", "auto", "name", "Nolan")]
+    assert rows(conn, 2) == [(nolan, "maybe", "auto", "name", "Nolan")]
+    assert rows(conn, 3) == []
+    assert dana not in {r[0] for r in rows(conn, 1)}
 
 
 # --- rematch jobs (4.5) --------------------------------------------------------------------
 
 
-def test_profile_and_sample_changes_queue_one_rematch(
+def test_profile_changes_queue_one_rematch(
     conn: sqlite3.Connection, people: tuple[int, int]
 ) -> None:
-    nolan, dana = people  # creating two people queued one job, not two
+    _, dana = people  # creating two people queued one job, not two
     assert rematch_jobs(conn) == [(None,)]
     Profiles(conn).update(dana, "Dana", ["Dana", "Danna"])
-    add_call(conn, 1, [(0.0, 5.0, NOLAN_VOICE)])
-    VoiceSamples(conn).add(nolan, 1, [0])
-    VoiceSamples(conn).remove_call(nolan, 1)
     Profiles(conn).delete(dana)
     assert rematch_jobs(conn) == [(None,)]
 
@@ -215,11 +174,8 @@ def test_a_rematch_over_100_calls_uses_stored_data_only(tmp_path: Path) -> None:
     conn = rig.conn
     conn.execute("DELETE FROM jobs")  # the rig's own call isn't transcribed
     nolan = Profiles(conn).create("Nolan", ["Nolan"]).id
-    enroll_nolan(conn, nolan)
     for n in range(100):
-        call_id = 1000 + n
-        lines = [(0.0, 6.0, NOLAN_VOICE if n % 2 == 0 else CUSTOMER), (6.5, 12.0, CUSTOMER)]
-        add_call(conn, call_id, lines)
+        add_named_call(conn, 1000 + n, "this is Nolan" if n % 2 == 0 else "hello there")
     Attributions(conn, now=rig.clock.utcnow).reject(1000, nolan)
     Attributions(conn, now=rig.clock.utcnow).claim(1001, nolan)
     manual_before = conn.execute(
@@ -237,11 +193,11 @@ def test_a_rematch_over_100_calls_uses_stored_data_only(tmp_path: Path) -> None:
         "SELECT * FROM attributions WHERE source = 'manual' ORDER BY call_id"
     ).fetchall()
     assert [tuple(r) for r in manual_after] == [tuple(r) for r in manual_before]
-    by_voice = conn.execute(
-        "SELECT count(*) FROM attributions WHERE source = 'auto' AND method = 'voice'"
-        " AND call_id BETWEEN 1000 AND 1099"
+    by_name = conn.execute(
+        "SELECT count(*) FROM attributions WHERE source = 'auto' AND method = 'name'"
+        " AND status = 'maybe' AND call_id BETWEEN 1000 AND 1099"
     ).fetchone()[0]
-    assert by_voice == 49  # the even calls, less the rejected one
+    assert by_name == 49  # the even calls, less the rejected one
 
 
 def test_a_failed_rematch_is_retried_later(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -266,14 +222,14 @@ def test_a_failed_rematch_is_retried_later(tmp_path: Path, monkeypatch: pytest.M
 
 
 class Greeting:
-    """Transcribes every call as Nolan answering, with a voiceprint that sounds like him."""
+    """Transcribes every call as Nolan answering."""
 
     def run(self, audio: bytes) -> PipelineResult:
         words = tuple(
             Word(0.4 * n, 0.4 * n + 0.3, w)
             for n, w in enumerate(["Tire", "Pros,", "this", "is", "Nolan."])
         )
-        line = Line(0.0, 6.0, "Tire Pros, this is Nolan.", words, NOLAN_VOICE)
+        line = Segment(0.0, 6.0, "Tire Pros, this is Nolan.", words)
         return PipelineResult("en", "small.en", (line,))
 
 
@@ -286,12 +242,4 @@ def test_a_new_call_is_attributed_when_it_is_transcribed(tmp_path: Path) -> None
     assert runner.process_one()
 
     assert rig.state() == ("transcribed", None)
-    [(profile, status, source, method, heard, score)] = rows(rig.conn, CALL)
-    assert (profile, status, source, method, heard, score) == (
-        nolan,
-        "confident",
-        "auto",
-        "name",  # no usable voice profile yet
-        "Nolan.",
-        None,
-    )
+    assert rows(rig.conn, CALL) == [(nolan, "maybe", "auto", "name", "Nolan.")]

@@ -49,12 +49,12 @@ Done after groups 4 to 6 (decided 2026-10-26). 3.1's results led to removing voi
 
 Voice tasks 1.1, 1.3, 2.3 to 2.5, 3.1, 4.1, 4.3, 5.1, 6.1, 6.3 and 6.4 were built and are taken back out here.
 
-- [ ] 8.1 Remove the voiceprint step and the speaker-embedding model from the pipeline and the image; verify the pipeline tests and a `model`-marked test that a fixture call is transcribed with no voice step
-- [ ] 8.2 Write the migration that drops the segment `voiceprint` column, `voice_samples`, the `attributions.voice_score` column and the voice threshold settings, deletes `voice` and `name+voice` automatic rows and queues a rematch; verify a migration test from the current database, including that manual rows and transcript search are unchanged
-- [ ] 8.3 Remove voice samples, centroids, presence scoring, the thresholds and the `calibrate` command, and change the rules to name hit → Maybe (design D4); verify table-driven tests for every scenario under "Automatic attribution rules", and that rematch is queued only by profile and variant changes
-- [ ] 8.4 Remove the enrollment and sample endpoints, `has_voiceprint` and `voice_score` from the API; verify the route-walk test and that responses contain none of them
-- [ ] 8.5 Remove the line tick boxes and Enroll bar from the Call view, the voice progress, enrolled lines and consent note from the People screen, the voice score from "People on this call", and the Voice matching section from Settings; verify the updated component tests
-- [ ] 8.6 Update `docs/architecture.md` and the README for name-only attribution without voice data, and verify that the `check` script passes
+- [x] 8.1 Remove the voiceprint step and the speaker-embedding model from the pipeline and the image; verify the pipeline tests and a `model`-marked test that a fixture call is transcribed with no voice step
+- [x] 8.2 Write the migration that drops the segment `voiceprint` column, `voice_samples`, the `attributions.voice_score` column and the voice threshold settings, deletes `voice` and `name+voice` automatic rows and queues a rematch; verify a migration test from the current database, including that manual rows and transcript search are unchanged
+- [x] 8.3 Remove voice samples, centroids, presence scoring, the thresholds and the `calibrate` command, and change the rules to name hit → Maybe (design D4); verify table-driven tests for every scenario under "Automatic attribution rules", and that rematch is queued only by profile and variant changes
+- [x] 8.4 Remove the enrollment and sample endpoints, `has_voiceprint` and `voice_score` from the API; verify the route-walk test and that responses contain none of them
+- [x] 8.5 Remove the line tick boxes and Enroll bar from the Call view, the voice progress, enrolled lines and consent note from the People screen, the voice score from "People on this call", and the Voice matching section from Settings; verify the updated component tests
+- [x] 8.6 Update `docs/architecture.md` and the README for name-only attribution without voice data, and verify that the `check` script passes
 
 ## 7. End-to-end checks
 

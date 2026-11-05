@@ -184,7 +184,7 @@ describe("the People filter", () => {
   const MAYBE = call({
     id: 90012421,
     start_local: "2026-10-22 10:15:00",
-    attributions: [attribution({ status: "maybe", method: "voice", name_heard: null, name_at_s: null, voice_score: 0.58 })],
+    attributions: [attribution({ status: "maybe", method: "name", name_heard: "Nolen", name_at_s: 1.2 })],
   });
 
   function servePeople(): World {

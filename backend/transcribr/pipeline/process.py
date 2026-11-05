@@ -15,8 +15,7 @@ from typing import Protocol
 from transcribr.attribution.matching import attribute_call, load_context, rematch_all
 from transcribr.attribution.queue import REMATCH
 from transcribr.pipeline.audio import AudioError, decode
-from transcribr.pipeline.transcribe import Transcriber
-from transcribr.pipeline.voiceprint import Line, Voiceprinter
+from transcribr.pipeline.transcribe import Segment, Transcriber
 from transcribr.ravon.client import (
     LoginRejected,
     NoCredentials,
@@ -38,7 +37,7 @@ MAX_REASON = 500
 class PipelineResult:
     language: str
     model: str
-    segments: tuple[Line, ...]
+    segments: tuple[Segment, ...]
 
     @property
     def no_speech(self) -> bool:
@@ -50,7 +49,7 @@ class Pipeline(Protocol):
 
 
 class ModelPipeline:
-    """Decode, transcribe, then voiceprint each line. Models load on first use and stay loaded."""
+    """Decode, then transcribe. The model loads on first use and stays loaded."""
 
     def __init__(
         self,
@@ -62,19 +61,14 @@ class ModelPipeline:
         self._models_dir = models_dir
         self._hotwords = hotwords  # read before each call, so profile changes apply at once
         self._transcriber = transcriber
-        self._voiceprinter: Voiceprinter | None = None
 
     def run(self, audio: bytes) -> PipelineResult:
         samples = decode(audio)
         if self._transcriber is None:
             self._transcriber = Transcriber(self._models_dir)
         transcript = self._transcriber.transcribe(samples, hotwords=self._hotwords())
-        if transcript.no_speech:
-            return PipelineResult(transcript.language, transcript.model, ())
-        if self._voiceprinter is None:
-            self._voiceprinter = Voiceprinter(self._models_dir)
-        lines = self._voiceprinter.lines(samples, transcript.segments)
-        return PipelineResult(transcript.language, transcript.model, lines)
+        segments = () if transcript.no_speech else tuple(transcript.segments)
+        return PipelineResult(transcript.language, transcript.model, segments)
 
 
 @dataclass(frozen=True)
@@ -219,8 +213,8 @@ class JobRunner:
                 ),
             )
             self._conn.executemany(
-                "INSERT INTO segments (call_id, idx, start_s, end_s, text, words, voiceprint)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO segments (call_id, idx, start_s, end_s, text, words)"
+                " VALUES (?, ?, ?, ?, ?, ?)",
                 [
                     (
                         call_id,
@@ -229,7 +223,6 @@ class JobRunner:
                         s.end,
                         s.text,
                         json.dumps([[w.start, w.end, w.text] for w in s.words]),
-                        None if s.voiceprint is None else s.voiceprint.tobytes(),
                     )
                     for index, s in enumerate(result.segments)
                 ],

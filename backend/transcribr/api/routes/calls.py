@@ -1,7 +1,4 @@
-"""Open call endpoints: the call list and search, one call, its transcript, and call actions.
-
-The response models carry no voiceprint field, so voiceprints cannot leak by accident.
-"""
+"""Open call endpoints: the call list and search, one call, its transcript, and call actions."""
 
 from datetime import date
 from typing import Annotated, Literal
@@ -38,15 +35,14 @@ class Passage(BaseModel):
 
 
 class Attribution(BaseModel):
-    """A person on the call. The voice score is a number; voiceprints never leave the server."""
+    """A person on the call, and how they were found."""
 
     profile_id: int
     display_name: str
     status: Literal["confident", "maybe"]
-    method: Literal["name", "voice", "name+voice", "manual"]
+    method: Literal["name", "manual"]
     name_heard: str | None  # the transcript words that matched one of their name variants
     name_at_s: float | None  # when, in seconds into the recording
-    voice_score: float | None  # the call's voice presence score for them
 
 
 class CallSummary(BaseModel):
@@ -86,7 +82,6 @@ class Segment(BaseModel):
     start_s: float
     end_s: float
     text: str
-    has_voiceprint: bool  # whether the admin can enroll this line for a person's voice
 
 
 class Transcript(BaseModel):

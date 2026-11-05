@@ -4,15 +4,13 @@ from datetime import timedelta
 from pathlib import Path
 
 import httpx
-import numpy as np
 import pytest
 
 from tests.clock import FakeClock
 from tests.fake_ravon.app import FakeCall, FakeRavon
 from transcribr.pipeline.audio import AudioError
 from transcribr.pipeline.process import JobRunner, PipelineResult
-from transcribr.pipeline.transcribe import Word
-from transcribr.pipeline.voiceprint import Line
+from transcribr.pipeline.transcribe import Segment, Word
 from transcribr.ravon.client import RavonClient
 from transcribr.ravon.parse import Recording
 from transcribr.store.calls import add_listed, is_listed, request_transcription
@@ -20,7 +18,6 @@ from transcribr.store.db import connect
 from transcribr.store.migrate import migrate
 
 CALL = 26541125
-VOICEPRINT = np.full(256, 1 / 16, dtype=np.float32)
 
 
 class StandInPipeline:
@@ -43,8 +40,8 @@ class StandInPipeline:
         if self.no_speech:
             return PipelineResult("en", "small.en", ())
         segments = (
-            Line(0.0, 3.5, "this is Nolan", (Word(0.0, 1.0, "this"),), VOICEPRINT),
-            Line(4.0, 4.8, "a lift kit", (Word(4.0, 4.8, "a"),), None),
+            Segment(0.0, 3.5, "this is Nolan", (Word(0.0, 1.0, "this"),)),
+            Segment(4.0, 4.8, "a lift kit", (Word(4.0, 4.8, "a"),)),
         )
         return PipelineResult("en", "small.en", segments)
 
@@ -107,7 +104,7 @@ def test_waiting_goes_to_processing_then_transcribed(rig: Rig) -> None:
     assert not rig.runner.process_one(rig.conn)  # nothing left
 
 
-def test_the_transcript_and_line_voiceprints_are_stored(rig: Rig) -> None:
+def test_the_transcript_is_stored_without_voice_data(rig: Rig) -> None:
     rig.runner.process_one(rig.conn)
     transcript = rig.conn.execute("SELECT * FROM transcripts").fetchone()
     assert (transcript["language"], transcript["model"], transcript["no_speech"]) == (
@@ -115,13 +112,9 @@ def test_the_transcript_and_line_voiceprints_are_stored(rig: Rig) -> None:
         "small.en",
         0,
     )
-    segments = rig.conn.execute(
-        "SELECT text, words, voiceprint FROM segments ORDER BY idx"
-    ).fetchall()
+    segments = rig.conn.execute("SELECT text, words FROM segments ORDER BY idx").fetchall()
     assert [s[0] for s in segments] == ["this is Nolan", "a lift kit"]
     assert segments[0][1] == '[[0.0, 1.0, "this"]]'
-    assert np.frombuffer(segments[0][2], dtype=np.float32).tolist() == VOICEPRINT.tolist()
-    assert segments[1][2] is None  # under a second
     hits = rig.conn.execute(
         "SELECT count(*) FROM segments_fts WHERE segments_fts MATCH '\"lift kit\"'"
     ).fetchone()[0]
@@ -254,7 +247,9 @@ FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "audio"
 
 
 @pytest.mark.model
-@pytest.mark.skipif(not (MODELS / "sherpa-onnx" / "embedding.onnx").exists(), reason="no models")
+@pytest.mark.skipif(
+    not (MODELS / "faster-whisper-small.en" / "model.bin").exists(), reason="no models"
+)
 def test_end_to_end_with_the_real_models(rig: Rig) -> None:
     from transcribr.pipeline.process import ModelPipeline
 
@@ -262,11 +257,7 @@ def test_end_to_end_with_the_real_models(rig: Rig) -> None:
     runner = JobRunner(rig.conn, rig.make_client(), ModelPipeline(MODELS), now=rig.clock.utcnow)
     assert runner.process_one()
     assert rig.state() == ("transcribed", None)
-    lines = rig.conn.execute(
-        "SELECT start_s, end_s, text, voiceprint FROM segments ORDER BY idx"
-    ).fetchall()
+    lines = rig.conn.execute("SELECT start_s, end_s, text FROM segments ORDER BY idx").fetchall()
     assert "Nolan" in lines[0][2]
-    for start, end, _, voiceprint in lines:
-        assert (voiceprint is not None) == (end - start >= 1.0)
-        if voiceprint is not None:
-            assert len(voiceprint) == 256 * 4  # float32
+    columns = {r[1] for r in rig.conn.execute("PRAGMA table_info(segments)")}
+    assert "voiceprint" not in columns  # no voice step runs

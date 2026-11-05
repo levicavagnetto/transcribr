@@ -137,41 +137,6 @@ RESEARCH_PROMPT = register(
 )
 
 
-VOICE_THRESHOLD_MESSAGE = "Each voice threshold must be a number from 0 to 1."
-_THRESHOLD = TypeAdapter(Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)])
-
-# Defaults from calibration on real calls, 2026-11-05 (add-call-attribution design D9).
-VOICE_LOW = register(
-    Setting(
-        key="voice_threshold_low",
-        adapter=_THRESHOLD,
-        default=0.60,
-        label="Weak voice match from",
-        message=VOICE_THRESHOLD_MESSAGE,
-    )
-)
-VOICE_HIGH = register(
-    Setting(
-        key="voice_threshold_high",
-        adapter=_THRESHOLD,
-        default=0.70,
-        label="Strong voice match from",
-        message=VOICE_THRESHOLD_MESSAGE,
-    )
-)
-
-
-def _low_below_high(values: Mapping[str, Any]) -> SettingError | None:
-    if values[VOICE_LOW.key] < values[VOICE_HIGH.key]:
-        return None
-    return SettingError(
-        VOICE_LOW.key, "The weak voice match threshold must be below the strong one."
-    )
-
-
-_RULES.append(_low_below_high)
-
-
 class Settings:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self._conn = conn

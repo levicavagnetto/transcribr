@@ -13,18 +13,15 @@ import { PersonChip } from "./PersonChip";
 
 const METHOD: Record<Attribution["method"], string> = {
   name: "By name",
-  voice: "By voice",
-  "name+voice": "By name and voice",
   manual: "Set by hand",
 };
 
-// Why the call is theirs: the words heard and when, and the voice presence score.
+// Why the call is theirs: the words heard and when.
 export function evidence(a: Attribution): string {
   const parts = [METHOD[a.method]];
   if (a.name_heard !== null) {
     parts.push(`heard "${a.name_heard}"${a.name_at_s !== null ? ` at ${mss(a.name_at_s)}` : ""}`);
   }
-  if (a.voice_score !== null) parts.push(`voice presence ${a.voice_score.toFixed(2)}`);
   return parts.join(" · ");
 }
 

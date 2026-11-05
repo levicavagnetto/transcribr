@@ -16,9 +16,9 @@ flowchart LR
         RC["Ravon client<br/>login, search, download<br/>read-only allow list"]
         PO["Poller<br/>every 1–2 min<br/>records last successful run"]
         Q[("Job queue<br/>SQLite")]
-        PR["Processor<br/>1 fetch audio (memory only)<br/>2 transcribe (faster-whisper)<br/>3 voiceprint each line (sherpa-onnx)"]
-        MA["Matcher (per call)<br/>name in opening lines<br/>+ voice presence<br/>→ person, method, confidence"]
-        DB[("SQLite<br/>calls, transcripts + FTS,<br/>line voiceprints, profiles, settings")]
+        PR["Processor<br/>1 fetch audio (memory only)<br/>2 transcribe (faster-whisper)"]
+        MA["Matcher (per call)<br/>name in opening lines<br/>→ Maybe for that person"]
+        DB[("SQLite<br/>calls, transcripts + FTS,<br/>profiles, attributions, settings")]
         API["FastAPI<br/>REST API"]
         UI["React UI<br/>calls, filters, transcript,<br/>Copy for ChatGPT, profiles, settings"]
     end
@@ -58,9 +58,9 @@ flowchart LR
 | Ravon client | Logs in, searches recordings, downloads MP3s into memory. Every request passes a read-only allow list. |
 | Poller | Searches recent calls every 1–2 minutes and lists new ones. Auto-queues a call only if it ended while the server was running; calls missed while it was off are listed as "Not transcribed". |
 | Job queue | SQLite table; survives restarts. Sources: auto (poller) and the Transcribe button. Retries with backoff, then Failed with a reason. |
-| Processor | One job at a time: fetch audio, transcribe into timestamped lines, compute a voiceprint for each line of 1 second or more, discard audio. Lines are not assigned to speakers. |
-| Matcher | Assigns a call to a profile by name in the opening lines and/or voice presence (enough seconds of the call's lines matching the profile's voice). It never says who said which line. Stores person, method and confidence; uncertain calls are "Maybe". |
-| SQLite | All state: calls (every listed call), transcripts with full-text search, line voiceprints, profiles, settings. |
+| Processor | One job at a time: fetch audio, transcribe into timestamped lines, discard audio. Lines are not assigned to speakers, and no voice data is computed or kept. |
+| Matcher | Marks a call as a Maybe for a profile when one of its name spellings is heard in the first 30 seconds of speech. Only a person's Confirm or Add makes a call Confident, and Not <person> removes a match for good. It never says who said which line. Voice matching was tried and removed: it couldn't tell the shop's service writers apart on phone audio. |
+| SQLite | All state: calls (every listed call), transcripts with full-text search, profiles, attributions, settings. |
 | FastAPI + React UI | One open view of all calls with per-profile, Unassigned and Maybe filters; transcript view with Copy for ChatGPT; profile setup; settings. |
 | MCP server (phase 2) | A separate, thin client of the transcribr REST API, like the UI. Exposes read-only tools and has no access to Ravon, the database or credentials. Only transcribr talks to Ravon. Reached by ChatGPT through a secure tunnel with OAuth. |
 
@@ -68,7 +68,7 @@ flowchart LR
 
 - Fresh rewrite; v1 (`../transcribr_old`) is used only for verified facts about Ravon and the audio.
 - Server on a shop PC; one Docker image (multi-stage build: React built by Node, served by the Python app) run as two compose services, `web` (API + UI) and `worker` (poller + pipeline), sharing one named data volume. See the OpenSpec change design D1. Deployable on Linux, Windows (Docker Desktop/WSL2) or macOS, amd64 or arm64.
-- Ravon's user/extension filters do not identify the service writer; attribution comes from the transcript (name) and voiceprints.
+- Ravon's user/extension filters do not identify the service writer; attribution comes from the name heard in the transcript and from people's own decisions.
 - People are configured per instance in the UI, never hard-coded.
 - Everyone on the shop network sees all calls and can use every call action without logging in; profiles are filters. People and Settings are in an admin area at `/admin`, behind one admin login created on the first visit with a setup code from the server log. Attribution is stored as data so access can be made stricter later.
 - Research happens in the service writer's own ChatGPT: Copy for ChatGPT in phase 1, and in phase 2 a read-only MCP connector to transcribr. ChatGPT asks transcribr for transcripts (ChatGPT → MCP server → transcribr API → transcribr's database). LLMs never talk to Ravon; only transcribr does.

@@ -93,8 +93,8 @@ def test_unknown_profiles(profiles: Profiles) -> None:
 def test_delete_a_profile(conn: sqlite3.Connection, profiles: Profiles) -> None:
     nolan = profiles.create("Nolan", ["Nolan"])
     dana = profiles.create("Dana", ["Dana"])
-    add_call(conn, 1, [(0.0, 5.0, None)])
-    add_call(conn, 2, [(0.0, 5.0, None)])
+    add_call(conn, 1, [(0.0, 5.0)])
+    add_call(conn, 2, [(0.0, 5.0)])
     attribute(conn, 1, nolan.id, "auto")  # only Nolan: becomes Unassigned
     attribute(conn, 2, nolan.id, "manual")
     attribute(conn, 2, dana.id, "auto")  # Dana stays on call 2

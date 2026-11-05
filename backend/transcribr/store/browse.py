@@ -200,7 +200,7 @@ def attributions(conn: sqlite3.Connection, call_ids: list[int]) -> dict[int, lis
     marks = ", ".join("?" for _ in call_ids)
     for r in conn.execute(
         "SELECT a.call_id, a.profile_id, p.display_name, a.status, a.method,"  # noqa: S608 - only "?" marks are joined in
-        " a.name_heard, a.name_at_s, a.voice_score"
+        " a.name_heard, a.name_at_s"
         " FROM attributions a JOIN profiles p ON p.id = a.profile_id"
         f" WHERE a.call_id IN ({marks}) AND a.status IN ('confident', 'maybe')"
         " ORDER BY a.call_id, a.status, p.display_name COLLATE NOCASE",
@@ -214,7 +214,6 @@ def attributions(conn: sqlite3.Connection, call_ids: list[int]) -> dict[int, lis
                 "method": r["method"],
                 "name_heard": r["name_heard"],
                 "name_at_s": r["name_at_s"],
-                "voice_score": r["voice_score"],
             }
         )
     return found
@@ -299,11 +298,9 @@ def transcript(conn: sqlite3.Connection, call_id: int) -> dict[str, Any] | None:
             "start_s": r["start_s"],
             "end_s": r["end_s"],
             "text": r["text"],
-            "has_voiceprint": bool(r["has_voiceprint"]),
         }
         for r in conn.execute(
-            "SELECT idx, start_s, end_s, text, voiceprint IS NOT NULL AS has_voiceprint"
-            " FROM segments WHERE call_id = ? ORDER BY idx",
+            "SELECT idx, start_s, end_s, text FROM segments WHERE call_id = ? ORDER BY idx",
             (call_id,),
         )
     ]

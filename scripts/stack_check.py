@@ -374,12 +374,10 @@ def find_and_read_a_call(stack: Stack) -> None:
     if (
         not segments
         or "speakers" in transcript
-        or any("speaker" in s or "voiceprint" in s for s in segments)
-        or not any(s["has_voiceprint"] for s in segments)
+        or any("speaker" in s or "voice" in s for s in segments)
     ):
         raise StepFailed(f"transcript: {transcript}")
-    with_voiceprint = sum(s["has_voiceprint"] for s in segments)
-    print(f"{len(segments)} lines, {with_voiceprint} with a voiceprint, no speaker labels")
+    print(f"{len(segments)} lines, no speaker labels and no voice data")
 
     step("Copy for ChatGPT gets the prompt, details and lines it formats")
     prompt = stack.web.get("/api/v1/research-prompt").json()["prompt"]

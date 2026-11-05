@@ -222,74 +222,6 @@ function ResearchPrompt({ field, saved }: { field: SettingField | undefined; sav
   );
 }
 
-const LOW = "voice_threshold_low";
-const HIGH = "voice_threshold_high";
-
-// Saved on its own: changing a threshold re-matches every transcribed call in the background.
-function VoiceThresholds({ fields, values }: { fields: SettingField[]; values: SettingsValues }) {
-  const save = useSaveSettings();
-  const [low, setLow] = useState(String(values[LOW] ?? ""));
-  const [high, setHigh] = useState(String(values[HIGH] ?? ""));
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-  const field = (key: string) => fields.find((f) => f.key === key);
-  const serverError = save.error instanceof ApiError && (save.error.key === LOW || save.error.key === HIGH) ? save.error.message : null;
-
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    const lowValue = Number(low);
-    const highValue = Number(high);
-    const inRange = (v: number, text: string) => text.trim() !== "" && Number.isFinite(v) && v >= 0 && v <= 1;
-    if (!inRange(lowValue, low) || !inRange(highValue, high)) {
-      setError(field(LOW)?.message ?? "Each voice threshold must be a number from 0 to 1.");
-      return;
-    }
-    if (lowValue >= highValue) {
-      setError("The weak voice match threshold must be below the strong one. The previous values are still in use.");
-      return;
-    }
-    setError(null);
-    save.mutate({ [LOW]: lowValue, [HIGH]: highValue }, { onSuccess: () => setDone(true) });
-  };
-  const shown = error ?? serverError;
-
-  return (
-    <Box component="form" onSubmit={submit} noValidate>
-      <Section title="Voice matching">
-        <Typography color="text.secondary">
-          A call's voice presence score at or above the strong value counts as that person; between the weak and strong
-          values it is a Maybe. Changing these re-matches every transcribed call.
-        </Typography>
-        <Box sx={{ display: "grid", gap: 2.5, gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, maxWidth: 640 }}>
-          <TextField
-            label={field(LOW)?.label ?? "Weak voice match from"}
-            value={low}
-            onChange={(e) => setLow(e.target.value)}
-            helperText="0 to 1"
-            error={Boolean(shown)}
-            slotProps={{ htmlInput: { inputMode: "decimal" } }}
-          />
-          <TextField
-            label={field(HIGH)?.label ?? "Strong voice match from"}
-            value={high}
-            onChange={(e) => setHigh(e.target.value)}
-            helperText="0 to 1"
-            error={Boolean(shown)}
-            slotProps={{ htmlInput: { inputMode: "decimal" } }}
-          />
-        </Box>
-        {shown && <Alert severity="error">{shown}</Alert>}
-        <Box>
-          <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={save.isPending}>
-            Save voice matching
-          </Button>
-        </Box>
-      </Section>
-      <Snackbar open={done} autoHideDuration={4000} onClose={() => setDone(false)} message="Voice matching saved. Calls are being re-matched." />
-    </Box>
-  );
-}
-
 function RavonLogin() {
   const { data } = useStatus();
   const retry = useRetryLogin();
@@ -429,7 +361,6 @@ export function Settings() {
           field={settings.data?.fields.find((f) => f.key === "research_prompt")}
           saved={settings.data?.values.research_prompt ?? ""}
         />
-        {settings.data && <VoiceThresholds fields={settings.data.fields} values={settings.data.values} />}
       </Box>
       <Box sx={{ flex: "1 1 320px", display: "flex", flexDirection: "column", gap: 3 }}>
         <RavonLogin />

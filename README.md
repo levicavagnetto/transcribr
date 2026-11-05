@@ -108,9 +108,9 @@ docker compose cp web:/data/backups/transcribr-20261023T150000Z.db .
 ```
 
 The backup is a complete, consistent copy of the database. It includes calls, transcripts,
-line voiceprints, settings and the admin account (with the password stored only as a hash).
-It never contains the Ravon password or any audio. Voiceprints are personal data, so
-keep backups as private as the computer itself.
+people and their name spellings, settings and the admin account (with the password stored
+only as a hash). It never contains the Ravon password, any audio or any voice data.
+Transcripts are still customer conversations, so keep backups as private as the computer itself.
 
 To restore, on the same or another computer that has this folder and a `.env`:
 

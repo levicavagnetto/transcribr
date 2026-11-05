@@ -49,10 +49,14 @@ def conn(tmp_path: Path) -> sqlite3.Connection:
     )
     old.close()
 
-    assert migrate(db)[0] == 5
+    upto = tmp_path / "upto"
+    upto.mkdir()
+    for path in sorted(MIGRATIONS_DIR.glob("*.sql"))[:5]:  # this migration, not later ones
+        shutil.copy(path, upto / path.name)
+    assert migrate(db, migrations_dir=upto)[0] == 5
     assert len(list((tmp_path / "backups").glob("pre-migration-v4-*.db"))) == 1
     upgraded = connect(db)
-    assert schema_version(upgraded) == len(list(MIGRATIONS_DIR.glob("*.sql")))
+    assert schema_version(upgraded) == 5
     return upgraded
 
 

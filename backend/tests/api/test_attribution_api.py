@@ -1,29 +1,22 @@
-"""The people, enrollment and attribution endpoints (add-call-attribution 5.1 to 5.3)."""
+"""The people and attribution endpoints (add-call-attribution 5.1 to 5.3, 8.4)."""
 
 import sqlite3
 from typing import Any
 
-import numpy as np
 import pytest
 
 from tests.api.conftest import Api
 from transcribr.attribution.matching import rematch_all
 from transcribr.timeutil import utcnow
 
-NOLAN_VOICE = np.zeros(256, dtype=np.float32)
-NOLAN_VOICE[0] = 1.0
-CUSTOMER = np.zeros(256, dtype=np.float32)
-CUSTOMER[1] = 1.0
-MARKER = b"\x00\x00\xc0\x7f"  # a NaN float32, easy to spot if raw bytes ever leaked
-
 
 def add_call(
     conn: sqlite3.Connection,
     rid: int,
     hour: int,
-    lines: list[tuple[str, float, np.ndarray | None]],
+    lines: list[tuple[str, float]],
 ) -> None:
-    """A Transcribed call on 2026-10-22 at `hour`:00 store time, with (text, seconds, voice)."""
+    """A Transcribed call on 2026-10-22 at `hour`:00 store time, with (text, seconds) lines."""
     conn.execute(
         "INSERT INTO calls (id, queue, start_local, start_utc, minutes, caller_number,"
         " answered_by, listed_at, state) VALUES (?, 'q', ?, ?, 2, '(405) 555-0100', 'y', 't',"
@@ -36,11 +29,10 @@ def add_call(
         (rid,),
     )
     at = 0.0
-    for idx, (text, seconds, voice) in enumerate(lines):
+    for idx, (text, seconds) in enumerate(lines):
         conn.execute(
-            "INSERT INTO segments (call_id, idx, start_s, end_s, text, voiceprint)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (rid, idx, at, at + seconds, text, None if voice is None else voice.tobytes()),
+            "INSERT INTO segments (call_id, idx, start_s, end_s, text) VALUES (?, ?, ?, ?, ?)",
+            (rid, idx, at, at + seconds, text),
         )
         at += seconds + 0.5
 
@@ -48,13 +40,10 @@ def add_call(
 @pytest.fixture
 def calls(api: Api) -> Api:
     conn = api.db()
-    add_call(conn, 1, 8, [("Tire Pros, this is Nolan.", 3.0, NOLAN_VOICE),
-                          ("I need a lift kit quote.", 5.0, CUSTOMER)])  # fmt: skip
-    add_call(
-        conn, 2, 9, [("Front counter.", 2.0, NOLAN_VOICE), ("A lift kit please.", 4.0, CUSTOMER)]
-    )
-    add_call(conn, 3, 10, [("Is Nolan there?", 3.0, CUSTOMER), ("Hello?", 0.6, None)])
-    add_call(conn, 4, 11, [("Tires for a Camry.", 6.0, CUSTOMER)])
+    add_call(conn, 1, 8, [("Tire Pros, this is Nolan.", 3.0), ("I need a lift kit quote.", 5.0)])
+    add_call(conn, 2, 9, [("Front counter.", 2.0), ("A lift kit please.", 4.0)])
+    add_call(conn, 3, 10, [("Is Nolan there?", 3.0), ("Hello?", 0.6)])
+    add_call(conn, 4, 11, [("Tires for a Camry.", 6.0)])
     conn.execute(
         "INSERT INTO calls (id, queue, start_local, start_utc, minutes, caller_number,"
         " answered_by, listed_at) VALUES (5, 'q', '2026-10-22 12:00:00', '2026-10-22T17:00:00Z',"
@@ -82,7 +71,7 @@ def ids(api: Api, **params: Any) -> list[int]:
     return [c["id"] for c in response.json()["calls"]]
 
 
-# --- 5.1 admin profiles and enrollment -------------------------------------------------------
+# --- 5.1 admin profiles -----------------------------------------------------------------------
 
 
 def test_the_admin_manages_profiles(calls: Api) -> None:
@@ -92,14 +81,8 @@ def test_the_admin_manages_profiles(calls: Api) -> None:
         "/api/v1/admin/profiles", json={"display_name": "Nolan", "variants": ["Nolan", "Nolen"]}
     ).json()
     assert created["variants"] == ["Nolan", "Nolen"]
-    assert created["voice"] == {
-        "calls": 0,
-        "seconds": 0.0,
-        "usable": False,
-        "calls_needed": 3,
-        "seconds_needed": 30.0,
-    }
-    assert created["found"] == {"name": 0, "voice": 0, "name_and_voice": 0, "manual": 0, "maybe": 0}
+    assert created["found"] == {"name": 0, "manual": 0, "maybe": 0}
+    assert "voice" not in created
 
     pid = created["id"]
     edited = calls.put(
@@ -134,7 +117,6 @@ def test_unknown_profiles_are_404(admin: Api) -> None:
         admin.client.get("/api/v1/admin/profiles/99"),
         admin.put("/api/v1/admin/profiles/99", json={"display_name": "X", "variants": ["X"]}),
         admin.client.delete("/api/v1/admin/profiles/99", headers={"X-Transcribr": "1"}),
-        admin.client.get("/api/v1/admin/profiles/99/samples"),
     ):
         assert (response.status_code, response.json()["error"]["code"]) == (
             404,
@@ -142,64 +124,17 @@ def test_unknown_profiles_are_404(admin: Api) -> None:
         )
 
 
-def test_enroll_lines_from_a_call_and_remove_them(calls: Api) -> None:
-    calls.create_admin()
-    calls.login()
-    pid = nolan(calls)
-    enrolled = calls.post(
-        f"/api/v1/admin/profiles/{pid}/samples", json={"call_id": 1, "lines": [0]}
-    )
-    assert enrolled.status_code == 200, enrolled.text
-    calls.post(f"/api/v1/admin/profiles/{pid}/samples", json={"call_id": 2, "lines": [0]})
-    body = calls.client.get(f"/api/v1/admin/profiles/{pid}/samples").json()
-    assert body["voice"]["calls"] == 2 and body["voice"]["seconds"] == 5.0
-    assert body["calls"] == [
-        {"call_id": 2, "start_local": "2026-10-22 09:00:00", "seconds": 2.0,
-         "lines": [{"idx": 0, "start_s": 0.0, "end_s": 2.0}]},
-        {"call_id": 1, "start_local": "2026-10-22 08:00:00", "seconds": 3.0,
-         "lines": [{"idx": 0, "start_s": 0.0, "end_s": 3.0}]},
-    ]  # fmt: skip
-    profile = calls.client.get(f"/api/v1/admin/profiles/{pid}").json()
-    assert (profile["voice"]["calls_needed"], profile["voice"]["seconds_needed"]) == (1, 25.0)
-
-    removed = calls.client.delete(
-        f"/api/v1/admin/profiles/{pid}/samples/2", headers={"X-Transcribr": "1"}
-    ).json()
-    assert [c["call_id"] for c in removed["calls"]] == [1]
-
-
-@pytest.mark.parametrize(
-    ("body", "code"),
-    [
-        ({"call_id": 3, "lines": [1]}, "line_without_voiceprint"),
-        ({"call_id": 3, "lines": [9]}, "line_not_found"),
-        ({"call_id": 5, "lines": [0]}, "call_not_transcribed"),
-        ({"call_id": 1, "lines": []}, "no_lines"),
-    ],
-)
-def test_lines_that_cannot_be_enrolled_are_refused(
-    calls: Api, body: dict[str, Any], code: str
-) -> None:
-    calls.create_admin()
-    calls.login()
-    pid = nolan(calls)
-    response = calls.post(f"/api/v1/admin/profiles/{pid}/samples", json=body)
-    assert (response.status_code, response.json()["error"]["code"]) == (422, code)
-
-
-def test_enrollment_and_profiles_are_refused_without_an_admin_session(calls: Api) -> None:
+def test_profiles_are_refused_without_an_admin_session(calls: Api) -> None:
     calls.create_admin()
     calls.login()
     pid = nolan(calls)
     calls.client.cookies.clear()
     for response in (
-        calls.post(f"/api/v1/admin/profiles/{pid}/samples", json={"call_id": 1, "lines": [0]}),
         calls.client.get("/api/v1/admin/profiles"),
-        calls.client.get(f"/api/v1/admin/profiles/{pid}/samples"),
+        calls.client.get(f"/api/v1/admin/profiles/{pid}"),
     ):
         assert response.status_code == 401
         assert "Nolan" not in response.text
-    assert calls.db().execute("SELECT count(*) FROM voice_samples").fetchone()[0] == 0
 
 
 # --- 5.2 open call actions --------------------------------------------------------------------
@@ -216,11 +151,11 @@ def test_claim_reject_and_confirm_without_logging_in(calls: Api) -> None:
     assert claimed.json() == {
         "attributions": [
             {"profile_id": pid, "display_name": "Nolan", "status": "confident", "method": "manual",
-             "name_heard": None, "name_at_s": None, "voice_score": None}
+             "name_heard": None, "name_at_s": None}
         ]
     }  # fmt: skip
 
-    rematch(calls)  # call 3: "Is Nolan there?" with no voice profile -> Confident by name
+    rematch(calls)  # call 3: "Is Nolan there?" -> Maybe by name
     rejected = calls.client.delete(
         f"/api/v1/calls/3/attributions/{pid}", headers={"X-Transcribr": "1"}
     )
@@ -267,7 +202,7 @@ def test_call_actions_on_unknown_calls_or_people(
 
 @pytest.fixture
 def attributed(calls: Api) -> tuple[Api, int, int]:
-    """Nolan: Confident on 1 (name), Maybe on 2 (voice). Dana: Confident on 2 (manual)."""
+    """Nolan: Confident on 1 (confirmed), Maybe on 2 (name). Dana: Confident on 2 (manual)."""
     calls.create_admin()
     calls.login()
     pid = nolan(calls)
@@ -277,12 +212,12 @@ def attributed(calls: Api) -> tuple[Api, int, int]:
     conn = calls.db()
     conn.executemany(
         "INSERT INTO attributions (call_id, profile_id, status, source, method, name_heard,"
-        " name_at_s, voice_score, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 't')",
+        " name_at_s, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 't')",
         [
-            (1, pid, "confident", "auto", "name", "Nolan.", 1.6, None),
-            (2, pid, "maybe", "auto", "voice", None, None, 0.58),
-            (2, dana, "confident", "manual", "manual", None, None, None),
-            (3, pid, "rejected", "manual", "manual", None, None, None),
+            (1, pid, "confident", "manual", "manual", "Nolan.", 1.6),
+            (2, pid, "maybe", "auto", "name", "Nolen", 0.4),
+            (2, dana, "confident", "manual", "manual", None, None),
+            (3, pid, "rejected", "manual", "manual", None, None),
         ],
     )
     calls.client.cookies.clear()  # everything below is open
@@ -301,7 +236,7 @@ def test_filter_to_one_person(attributed: tuple[Api, int, int]) -> None:
     }
     assert marks == {2: [("Dana", "confident"), ("Nolan", "maybe")], 1: [("Nolan", "confident")]}
     first = body["calls"][1]["attributions"][0]
-    assert (first["method"], first["name_heard"], first["name_at_s"]) == ("name", "Nolan.", 1.6)
+    assert (first["method"], first["name_heard"], first["name_at_s"]) == ("manual", "Nolan.", 1.6)
 
 
 def test_review_uncertain_calls(attributed: tuple[Api, int, int]) -> None:
@@ -356,21 +291,16 @@ def test_people_for_the_filters(attributed: tuple[Api, int, int]) -> None:
 def test_the_call_screen_gets_the_calls_attributions(attributed: tuple[Api, int, int]) -> None:
     api, _, _ = attributed
     detail = api.client.get("/api/v1/calls/2").json()
-    assert [(a["display_name"], a["status"], a["voice_score"]) for a in detail["attributions"]] == [
+    assert [(a["display_name"], a["status"], a["name_heard"]) for a in detail["attributions"]] == [
         ("Dana", "confident", None),
-        ("Nolan", "maybe", 0.58),
+        ("Nolan", "maybe", "Nolen"),
     ]
     assert api.client.get("/api/v1/calls/3").json()["attributions"] == []  # rejections are hidden
 
 
-def test_no_voiceprint_or_centroid_ever_appears_in_a_response(
-    attributed: tuple[Api, int, int],
-) -> None:
+def test_no_voice_field_appears_in_any_response(attributed: tuple[Api, int, int]) -> None:
     api, pid, _ = attributed
-    conn = api.db()
-    conn.execute("UPDATE segments SET voiceprint = ? WHERE voiceprint IS NOT NULL", (MARKER * 256,))
     api.login()
-    api.post(f"/api/v1/admin/profiles/{pid}/samples", json={"call_id": 1, "lines": [0]})
     paths = [
         "/api/v1/calls",
         f"/api/v1/calls?person={pid}",
@@ -379,10 +309,9 @@ def test_no_voiceprint_or_centroid_ever_appears_in_a_response(
         "/api/v1/people",
         "/api/v1/admin/profiles",
         f"/api/v1/admin/profiles/{pid}",
-        f"/api/v1/admin/profiles/{pid}/samples",
     ]
     for path in paths:
         response = api.client.get(path)
         assert response.status_code == 200, path
-        text = response.text.lower()
-        assert '"voiceprint"' not in text and "centroid" not in text and "nan" not in text, path
+        assert "voice" not in response.text.lower(), path
+    assert api.client.get(f"/api/v1/admin/profiles/{pid}/samples").status_code == 404

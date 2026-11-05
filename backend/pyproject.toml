@@ -12,7 +12,6 @@ dependencies = [
     "numpy>=2.1",
     "pydantic>=2.9",
     "rapidfuzz>=3.9",
-    "sherpa-onnx>=1.12",
     "tzdata>=2024.1",
     "uvicorn>=0.32",
 ]

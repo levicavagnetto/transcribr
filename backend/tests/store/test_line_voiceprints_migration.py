@@ -48,7 +48,11 @@ def test_upgrading_a_database_with_speaker_labels(tmp_path: Path) -> None:
     )
     conn.close()
 
-    assert migrate(db)[0] == 4
+    upto = tmp_path / "upto"
+    upto.mkdir()
+    for path in sorted(MIGRATIONS_DIR.glob("*.sql"))[:4]:  # this migration, not later ones
+        shutil.copy(path, upto / path.name)
+    assert migrate(db, migrations_dir=upto)[0] == 4
 
     backups = list((tmp_path / "backups").glob("pre-migration-v3-*.db"))
     assert len(backups) == 1
@@ -57,7 +61,7 @@ def test_upgrading_a_database_with_speaker_labels(tmp_path: Path) -> None:
     old.close()
 
     conn = connect(db)
-    assert schema_version(conn) == len(list(MIGRATIONS_DIR.glob("*.sql")))
+    assert schema_version(conn) == 4
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     assert "speakers" not in tables
     columns = {r[1] for r in conn.execute("PRAGMA table_info(segments)")}

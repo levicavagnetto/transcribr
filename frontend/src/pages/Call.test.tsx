@@ -207,10 +207,10 @@ it("falls back to the queue's Ravon value until the worker has read the queue na
 });
 
 describe("people on the call", () => {
-  const BY_BOTH = attribution({ method: "name+voice", name_heard: "Nolan", name_at_s: 2.5, voice_score: 0.71 });
-  const MAYBE = attribution({ profile_id: 3, display_name: "Dana", status: "maybe", method: "voice", name_heard: null, name_at_s: null, voice_score: 0.57 });
+  const BY_HAND = attribution({ method: "manual", name_heard: "Nolan", name_at_s: 2.5 });
+  const MAYBE = attribution({ profile_id: 3, display_name: "Dana", status: "maybe", method: "name", name_heard: "Dana", name_at_s: 4 });
 
-  function servePeople(attributions = [BY_BOTH, MAYBE]): FakeApi {
+  function servePeople(attributions = [BY_HAND, MAYBE]): FakeApi {
     const { api } = serve({ attributions });
     api.on("GET /people", people());
     for (const verb of ["POST", "DELETE"]) {
@@ -222,12 +222,13 @@ describe("people on the call", () => {
     return api;
   }
 
-  it("shows why the call is theirs: the name heard with its time and the voice presence score", async () => {
+  it("shows why the call is theirs: the name heard with its time", async () => {
     servePeople();
     renderApp(`/calls/${ID}`);
     const section = within(await screen.findByRole("region", { name: "People on this call" }));
-    expect(section.getByText('By name and voice · heard "Nolan" at 0:03 · voice presence 0.71')).toBeInTheDocument();
-    expect(section.getByText("Maybe · By voice · voice presence 0.57")).toBeInTheDocument();
+    expect(section.getByText('Set by hand · heard "Nolan" at 0:03')).toBeInTheDocument();
+    expect(section.getByText('Maybe · By name · heard "Dana" at 0:04')).toBeInTheDocument();
+    expect(section.queryByText(/voice/i)).toBeNull();
     expect(section.getByLabelText("Maybe Dana")).toBeInTheDocument();
   });
 
@@ -250,51 +251,11 @@ describe("people on the call", () => {
     });
   });
 
-  it("shows staff no enrollment tick boxes", async () => {
+  it("shows no tick boxes or enrollment on the transcript", async () => {
     servePeople();
     renderApp(`/calls/${ID}`);
     const lines = within(await screen.findByRole("region", { name: "Transcript" }));
     expect(lines.queryByRole("checkbox")).toBeNull();
     expect(lines.queryByRole("button", { name: /Enroll as/ })).toBeNull();
-  });
-});
-
-describe("enrolling lines as the admin", () => {
-  function serveAdmin(): FakeApi {
-    const { api } = serve();
-    api.on("GET /auth/state", auth("logged_in"));
-    api.on("GET /people", people());
-    api.on(`GET /calls/${ID}/transcript`, transcript({
-      segments: [
-        { idx: 0, start_s: 0, end_s: 3.5, text: "Thanks for calling, this is Nolan.", has_voiceprint: true },
-        { idx: 1, start_s: 4.2, end_s: 4.8, text: "Hi.", has_voiceprint: false },
-        { idx: 2, start_s: 65, end_s: 70, text: "About nine hundred for all four.", has_voiceprint: true },
-      ],
-    }));
-    api.on("POST /admin/profiles/2/samples", { voice: { calls: 1, seconds: 8.5, usable: false, calls_needed: 2, seconds_needed: 21.5 }, calls: [] });
-    return api;
-  }
-
-  it("ticks lines and enrolls them for the chosen person", async () => {
-    const api = serveAdmin();
-    renderApp(`/calls/${ID}`);
-    const lines = within(await screen.findByRole("region", { name: "Transcript" }));
-    await userEvent.click(await lines.findByRole("checkbox", { name: "Line at 0:00" }));
-    await userEvent.click(lines.getByRole("checkbox", { name: "Line at 1:05" }));
-    await userEvent.click(lines.getByLabelText("Person"));
-    await userEvent.click(await screen.findByRole("option", { name: "Nolan" }));
-    await userEvent.click(lines.getByRole("button", { name: "Enroll as Nolan" }));
-    expect(await lines.findByText("Enrolled 2 lines for Nolan.")).toBeInTheDocument();
-    const post = api.sent.find((r) => r.method === "POST" && r.path === "/admin/profiles/2/samples");
-    expect(post?.body).toEqual({ call_id: ID, lines: [0, 2] });
-    expect(lines.getByRole("checkbox", { name: "Line at 0:00" })).not.toBeChecked();
-  });
-
-  it("can't tick a line without a voiceprint, and says why", async () => {
-    serveAdmin();
-    renderApp(`/calls/${ID}`);
-    const lines = within(await screen.findByRole("region", { name: "Transcript" }));
-    const short = await lines.findByRole("checkbox", { name: /Line at 0:04\. Can't be enrolled: under 1 second/ });
-    expect(short).toBeDisabled();
   });
 });

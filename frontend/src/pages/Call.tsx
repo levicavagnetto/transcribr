@@ -2,12 +2,9 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox";
 import Link from "@mui/material/Link";
-import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Skeleton from "@mui/material/Skeleton";
-import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { type ReactNode, useState } from "react";
 import { Link as RouterLink, useParams } from "react-router";
@@ -16,10 +13,7 @@ import { API } from "../api/client";
 import {
   type CallDetail,
   type Transcript,
-  useAuthState,
   useCall,
-  useEnroll,
-  usePeople,
   useResearchPrompt,
   useTranscribe,
   useTranscript,
@@ -110,64 +104,7 @@ function Listen({ call }: { call: CallDetail }) {
   );
 }
 
-const NO_VOICEPRINT = "Can't be enrolled: under 1 second, or transcribed before voiceprints were kept.";
-
-// The admin ticks lines where only one person talks and enrolls them for that person's voice profile.
-function EnrollBar({ callId, ticked, onDone }: { callId: number; ticked: number[]; onDone: () => void }) {
-  const people = usePeople();
-  const enroll = useEnroll();
-  const [person, setPerson] = useState<number | "">("");
-  const [done, setDone] = useState<string | null>(null);
-  const list = people.data?.people ?? [];
-  const chosen = list.find((p) => p.id === person);
-  if (list.length === 0) {
-    return (
-      <Typography variant="body2" color="text.secondary">
-        Add people in Admin, People to enroll their voice from these lines.
-      </Typography>
-    );
-  }
-  return (
-    <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-      <Typography variant="body2" color="text.secondary">
-        Tick lines where only one person is talking. {ticked.length} ticked.
-      </Typography>
-      <TextField select size="small" label="Person" value={person} onChange={(e) => setPerson(Number(e.target.value))} sx={{ minWidth: 180 }}>
-        {list.map((p) => (
-          <MenuItem key={p.id} value={p.id}>
-            {p.display_name}
-          </MenuItem>
-        ))}
-      </TextField>
-      <Button
-        variant="contained"
-        disabled={!chosen || ticked.length === 0 || enroll.isPending}
-        onClick={() =>
-          chosen &&
-          enroll.mutate(
-            { person: chosen.id, call: callId, lines: ticked },
-            {
-              onSuccess: () => {
-                setDone(`Enrolled ${ticked.length} ${ticked.length === 1 ? "line" : "lines"} for ${chosen.display_name}.`);
-                onDone();
-              },
-            },
-          )
-        }
-      >
-        Enroll as {chosen?.display_name ?? "…"}
-      </Button>
-      {done && <Alert severity="success">{done}</Alert>}
-      {enroll.error && <Alert severity="error">{enroll.error.message}</Alert>}
-    </Box>
-  );
-}
-
-function TranscriptView({ transcript, canEnroll }: { transcript: Transcript; canEnroll: boolean }) {
-  const [ticked, setTicked] = useState<number[]>([]);
-  const toggle = (idx: number, on: boolean) =>
-    setTicked((current) => (on ? [...current, idx].sort((a, b) => a - b) : current.filter((i) => i !== idx)));
-  const columns = canEnroll ? "40px 48px minmax(0, 1fr)" : "48px minmax(0, 1fr)";
+function TranscriptView({ transcript }: { transcript: Transcript }) {
   return (
     <Paper component="section" aria-label="Transcript" sx={{ p: { xs: 2, md: 3 } }}>
       <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "baseline", gap: 1, mb: 1 }}>
@@ -176,13 +113,12 @@ function TranscriptView({ transcript, canEnroll }: { transcript: Transcript; can
           {transcript.segments.length} {transcript.segments.length === 1 ? "line" : "lines"} · {transcript.model}
         </Typography>
       </Box>
-      {canEnroll && <EnrollBar callId={transcript.call_id} ticked={ticked} onDone={() => setTicked([])} />}
       {transcript.segments.map((segment) => (
         <Box
           key={segment.idx}
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: columns, sm: canEnroll ? "40px 56px minmax(0, 1fr)" : "56px minmax(0, 1fr)" },
+            gridTemplateColumns: { xs: "48px minmax(0, 1fr)", sm: "56px minmax(0, 1fr)" },
             columnGap: 1.5,
             alignItems: "start",
             py: 1,
@@ -191,23 +127,6 @@ function TranscriptView({ transcript, canEnroll }: { transcript: Transcript; can
             lineHeight: 1.5,
           }}
         >
-          {canEnroll && (
-            <Checkbox
-              size="small"
-              sx={{ p: 0.25 }}
-              checked={ticked.includes(segment.idx)}
-              disabled={!segment.has_voiceprint}
-              onChange={(e) => toggle(segment.idx, e.target.checked)}
-              title={segment.has_voiceprint ? undefined : NO_VOICEPRINT}
-              slotProps={{
-                input: {
-                  "aria-label": segment.has_voiceprint
-                    ? `Line at ${mss(segment.start_s)}`
-                    : `Line at ${mss(segment.start_s)}. ${NO_VOICEPRINT}`,
-                },
-              }}
-            />
-          )}
           <Typography component="span" variant="body2" color="text.secondary" sx={{ fontFamily: monoFontFamily, pt: 0.25 }}>
             {mss(segment.start_s)}
           </Typography>
@@ -222,7 +141,6 @@ export function Call() {
   const id = Number(useParams().id);
   const call = useCall(id);
   const transcript = useTranscript(id, call.data?.has_transcript === true && !call.data.no_speech);
-  const isAdmin = useAuthState().data?.state === "logged_in";
 
   const back = (
     <Link component={RouterLink} to="/" sx={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 500, py: 1 }}>
@@ -272,7 +190,7 @@ export function Call() {
           {data.state === "transcribed" && <PeopleOnCall call={data} />}
           <Listen call={data} />
           {transcript.data && transcript.data.segments.length > 0 && (
-            <TranscriptView transcript={transcript.data} canEnroll={isAdmin} />
+            <TranscriptView transcript={transcript.data} />
           )}
         </>
       )}
