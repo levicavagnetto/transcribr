@@ -2,6 +2,8 @@
 
 Only the admin enrolls lines. A profile's centroid is the L2-normalized, duration-weighted mean
 of its enrolled lines' voiceprints, computed from the current samples whenever it is needed.
+Scoring centers every voiceprint on the instance mean first: all lines share a large phone
+channel component that otherwise makes everyone look alike.
 Voiceprints, centroids and line scores never leave this module through the API.
 """
 
@@ -76,6 +78,36 @@ def centroid(prints: Sequence[tuple[Vector, float]]) -> Vector | None:
     if norm == 0.0:
         return None
     return (mean / norm).astype(np.float32)
+
+
+def instance_mean(conn: sqlite3.Connection) -> Vector | None:
+    """The duration-weighted mean of every stored line voiceprint (not unit length)."""
+    total: npt.NDArray[np.float64] | None = None
+    weight = 0.0
+    for blob, seconds in conn.execute(
+        "SELECT voiceprint, end_s - start_s FROM segments WHERE voiceprint IS NOT NULL"
+    ):
+        vp = from_blob(blob).astype(np.float64) * seconds
+        total = vp if total is None else total + vp
+        weight += seconds
+    if total is None or weight <= 0.0:
+        return None
+    return (total / weight).astype(np.float32)
+
+
+def centered(
+    prints: Sequence[tuple[Vector, float]], mean: Vector | None
+) -> list[tuple[Vector, float]]:
+    """Each voiceprint minus the instance mean, back at unit length; unchanged without a mean."""
+    if mean is None:
+        return list(prints)
+    out: list[tuple[Vector, float]] = []
+    for vp, seconds in prints:
+        diff = vp - mean
+        norm = float(np.linalg.norm(diff))
+        if norm > 1e-6:
+            out.append(((diff / norm).astype(np.float32), seconds))
+    return out
 
 
 def presence_score(
@@ -161,24 +193,30 @@ class VoiceSamples:
             calls[r["call_id"]] = EnrolledCall(r["call_id"], r["start_local"], lines)
         return list(calls.values())
 
-    def voice(self, profile_id: int) -> Vector | None:
-        """The person's centroid, whether or not the profile is usable yet."""
+    def voice(self, profile_id: int, mean: Vector | None = None) -> Vector | None:
+        """The person's centroid, whether or not the profile is usable yet, centered on mean."""
         return centroid(
-            [
-                (from_blob(r[0]), r[1])
-                for r in self._conn.execute(
-                    "SELECT s.voiceprint, s.end_s - s.start_s FROM voice_samples v"
-                    " JOIN segments s USING (call_id, idx) WHERE v.profile_id = ?",
-                    (profile_id,),
-                )
-            ]
+            centered(
+                [
+                    (from_blob(r[0]), r[1])
+                    for r in self._conn.execute(
+                        "SELECT s.voiceprint, s.end_s - s.start_s FROM voice_samples v"
+                        " JOIN segments s USING (call_id, idx) WHERE v.profile_id = ?",
+                        (profile_id,),
+                    )
+                ],
+                mean,
+            )
         )
 
-    def usable_voices(self) -> dict[int, Vector]:
+    def usable_voices(self, mean: Vector | None = None) -> dict[int, Vector]:
         """Centroids of every profile with enough enrolled speech for voice matching."""
         voices: dict[int, Vector] = {}
         for (profile_id,) in self._conn.execute("SELECT id FROM profiles ORDER BY id"):
-            if self.progress(profile_id).usable and (voice := self.voice(profile_id)) is not None:
+            if (
+                self.progress(profile_id).usable
+                and (voice := self.voice(profile_id, mean)) is not None
+            ):
                 voices[profile_id] = voice
         return voices
 
@@ -208,13 +246,18 @@ class VoiceSamples:
             )
 
 
-def call_prints(conn: sqlite3.Connection, call_id: int) -> list[tuple[Vector, float]]:
-    """A call's stored line voiceprints with each line's length in seconds."""
-    return [
-        (from_blob(r[0]), r[1])
-        for r in conn.execute(
-            "SELECT voiceprint, end_s - start_s FROM segments"
-            " WHERE call_id = ? AND voiceprint IS NOT NULL ORDER BY idx",
-            (call_id,),
-        )
-    ]
+def call_prints(
+    conn: sqlite3.Connection, call_id: int, mean: Vector | None = None
+) -> list[tuple[Vector, float]]:
+    """A call's stored line voiceprints with each line's length in seconds, centered on mean."""
+    return centered(
+        [
+            (from_blob(r[0]), r[1])
+            for r in conn.execute(
+                "SELECT voiceprint, end_s - start_s FROM segments"
+                " WHERE call_id = ? AND voiceprint IS NOT NULL ORDER BY idx",
+                (call_id,),
+            )
+        ],
+        mean,
+    )

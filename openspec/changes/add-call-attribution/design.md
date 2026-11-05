@@ -65,9 +65,13 @@ Mockups (People, and attribution on the Calls and Call screens): see `docs/archi
 - **Why only the opening:** it's where staff say their name, and later mentions ("ask Nolan") are usually about someone, not by them.
 
 ### D3. Voice presence
-- **Profile centroid:** the L2-normalized, duration-weighted mean of its enrolled lines' voiceprints. It's computed from the current samples whenever it's needed and never stored, so it can't fall out of step with them (for example when a re-transcribed call takes its enrolled lines with it).
+- **Centering:** every stored voiceprint shares one large component from the phone channel and codec. On live data the mean of all line voiceprints had length 0.91, every call scored 0.85 to 0.98 against an enrolled person, and voice matched almost every call. So before any comparison, each voiceprint has the **instance mean** subtracted and is renormalized to unit length.
+  - The instance mean is the duration-weighted mean of every stored line voiceprint. It's computed when matching or calibration starts and never stored.
+  - Lines transcribed later shift it slightly; calls keep their scores until the next rematch, which any enrollment or threshold change queues.
+  - Centering moved scores on live data to roughly -0.55 to 0.83, so the 0.50 / 0.65 thresholds are provisional until calibration (D9).
+- **Profile centroid:** the L2-normalized, duration-weighted mean of its enrolled lines' centered voiceprints. It's computed from the current samples whenever it's needed and never stored, so it can't fall out of step with them (for example when a re-transcribed call takes its enrolled lines with it).
 - **When a profile is usable:** enrolled lines from 3 or more distinct calls, totaling 30 or more seconds. These numbers are provisional; calibration (D9) may change both.
-- **Line score:** the cosine similarity between a line's voiceprint and a usable centroid.
+- **Line score:** the cosine similarity between a line's centered voiceprint and a usable centroid.
 - **Presence score** of a call for a profile:
   - It's the highest score `s` at which the call's lines scoring `s` or more add up to at least the **minimum presence**.
   - The minimum presence is provisionally 4 seconds; calibration sets it.

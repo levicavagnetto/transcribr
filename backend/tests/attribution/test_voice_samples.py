@@ -6,7 +6,14 @@ import pytest
 from tests.attribution.conftest import add_call, voice
 from tests.clock import FakeClock
 from transcribr.attribution.profiles import ProfileError, Profiles
-from transcribr.attribution.voice import MIN_CALLS, MIN_SECONDS, VoiceSamples, centroid
+from transcribr.attribution.voice import (
+    MIN_CALLS,
+    MIN_SECONDS,
+    VoiceSamples,
+    call_prints,
+    centroid,
+    instance_mean,
+)
 
 NOLAN = voice(1.0, 0.1)
 CUSTOMER = voice(0.1, 1.0)
@@ -158,3 +165,33 @@ def test_voice_matching_starts_at_three_calls_and_thirty_seconds(
     enroll(conn, samples, nolan, seconds)
     assert samples.progress(nolan).usable is usable
     assert (nolan in samples.usable_voices()) is usable
+
+
+def test_scoring_centers_voiceprints_on_the_instance_mean(
+    conn: sqlite3.Connection, samples: VoiceSamples, nolan: int
+) -> None:
+    # Every line shares a big phone-channel axis (axis 0); speakers differ only a little.
+    nolan_line = voice(3.0, 1.0, 0.0)
+    stranger_line = voice(3.0, 0.0, 1.0)
+    add_call(conn, 1, [(0.0, 10.0, nolan_line)])
+    add_call(conn, 2, [(0.0, 10.0, stranger_line)])
+    samples.add(nolan, 1, [0])
+
+    raw = samples.voice(nolan)
+    assert raw is not None
+    assert float(np.dot(raw, stranger_line)) > 0.85  # the bug: everyone looks like Nolan
+
+    mean = instance_mean(conn)
+    assert mean is not None
+    assert np.allclose(mean, (nolan_line + stranger_line) / 2, atol=1e-6)
+    centred = samples.voice(nolan, mean)
+    assert centred is not None
+    [(stranger, _)] = call_prints(conn, 2, mean)
+    [(himself, _)] = call_prints(conn, 1, mean)
+    assert float(np.dot(centred, stranger)) < 0.0
+    assert float(np.dot(centred, himself)) > 0.99
+
+
+def test_no_voiceprints_means_no_instance_mean(conn: sqlite3.Connection) -> None:
+    add_call(conn, 1, [(0.0, 10.0, None)])
+    assert instance_mean(conn) is None

@@ -13,7 +13,13 @@ from datetime import datetime
 from pathlib import Path
 
 from transcribr.attribution.profiles import ProfileError, Profiles
-from transcribr.attribution.voice import VoiceSamples, call_prints, line_scores, presence_score
+from transcribr.attribution.voice import (
+    VoiceSamples,
+    call_prints,
+    instance_mean,
+    line_scores,
+    presence_score,
+)
 
 PRESENCE_MINIMUMS = (2.0, 4.0, 6.0, 8.0)
 
@@ -31,7 +37,8 @@ def calibrate(
     conn: sqlite3.Connection, profile_id: int, call_ids: Sequence[int]
 ) -> list[CalibrationRow]:
     Profiles(conn).get(profile_id)
-    voice = VoiceSamples(conn).voice(profile_id)
+    mean = instance_mean(conn)
+    voice = VoiceSamples(conn).voice(profile_id, mean)
     if voice is None:
         raise ProfileError("no_voice", "Enroll some of this person's lines first.")
     enrolled = {
@@ -47,7 +54,7 @@ def calibrate(
             is None
         ):
             raise ProfileError("call_not_transcribed", f"Call {call_id} has no transcript.")
-        scores = line_scores(call_prints(conn, call_id), voice)
+        scores = line_scores(call_prints(conn, call_id, mean), voice)
         rows.append(
             CalibrationRow(
                 call_id,

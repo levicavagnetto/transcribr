@@ -19,6 +19,7 @@ from transcribr.attribution.voice import (
     Vector,
     VoiceSamples,
     call_prints,
+    instance_mean,
     line_scores,
     presence_score,
 )
@@ -36,16 +37,19 @@ class MatchContext:
     """Everything about the people that matching needs, read once per job."""
 
     variants: dict[int, tuple[str, ...]]
-    voices: dict[int, Vector]  # usable voice profiles only
+    voices: dict[int, Vector]  # usable voice profiles only, centered on mean
+    mean: Vector | None  # the instance mean every voiceprint is centered on
     low: float
     high: float
 
 
 def load_context(conn: sqlite3.Connection) -> MatchContext:
     settings = Settings(conn)
+    mean = instance_mean(conn)
     return MatchContext(
         {p.id: p.variants for p in Profiles(conn).everyone()},
-        VoiceSamples(conn).usable_voices(),
+        VoiceSamples(conn).usable_voices(mean),
+        mean,
         settings.get(VOICE_LOW),
         settings.get(VOICE_HIGH),
     )
@@ -70,7 +74,7 @@ def attribute_call(
 ) -> list[Decision]:
     """Rewrite one call's automatic attributions. The caller holds the write transaction."""
     tokens = opening(_call_words(conn, call_id))
-    prints = call_prints(conn, call_id)
+    prints = call_prints(conn, call_id, context.mean)
     evidence = {
         profile_id: Evidence(
             find_name(tokens, variants),

@@ -10,7 +10,7 @@ from transcribr.attribution import matching
 from transcribr.attribution.matching import Attributions, load_context, rematch_all
 from transcribr.attribution.profiles import ProfileError, Profiles
 from transcribr.attribution.queue import REMATCH, request_rematch
-from transcribr.attribution.voice import VoiceSamples
+from transcribr.attribution.voice import VoiceSamples, call_prints
 from transcribr.pipeline.process import JobRunner, PipelineResult
 from transcribr.pipeline.transcribe import Word
 from transcribr.pipeline.voiceprint import Line
@@ -163,7 +163,12 @@ def test_thresholds_come_from_the_settings(
     nolan, _ = people
     enroll_nolan(conn, nolan)
     add_call(conn, 1, [(0.0, 9.0, voice(1.0, 0.6))])  # sounds a bit like Nolan
-    score = float(voice(1.0, 0.6) @ NOLAN_VOICE)
+    for call_id, other in ((2, CUSTOMER), (3, DANA_VOICE), (4, voice(0.0, 0.0, 0.0, 1.0))):
+        add_call(conn, call_id, [(0.0, 20.0, other)])  # other voices on the line
+    context = load_context(conn)  # scores are centered on the instance mean
+    [(line, _)] = call_prints(conn, 1, context.mean)
+    score = float(line @ context.voices[nolan])
+    assert 0.2 < score < 0.9
 
     Settings(conn).set_many({VOICE_LOW.key: score - 0.1, VOICE_HIGH.key: score + 0.05})
     rematch_all(conn, FakeClock().utcnow())
