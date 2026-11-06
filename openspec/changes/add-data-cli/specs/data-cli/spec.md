@@ -27,7 +27,7 @@ Every data command SHALL print readable text by default. With `--json`, it SHALL
 - **THEN** the command exits non-zero and says no such call is listed
 
 ### Requirement: List calls
-`transcribr calls list` SHALL list calls newest first. Each call SHALL show its id, its start time in the store's time zone, direction, caller number, duration, state and attributed people. It SHALL accept the web call list's filters: `--from` and `--to` days, `--person`, `--maybe`, `--unassigned`, `--state` and `--number`. It SHALL show 50 calls by default, and `--limit` SHALL change that number.
+`transcribr calls list` SHALL list calls newest first. Each call SHALL show its id, its start time in the store's time zone, caller number, length, state and attributed people. It SHALL accept the web call list's filters: `--from` and `--to` days, `--person`, `--maybe`, `--unassigned`, `--state` and `--number`. It SHALL show 50 calls by default, and `--limit` SHALL change that number.
 
 #### Scenario: Filter by person
 - **WHEN** a user runs `transcribr calls list --person Nolan`
@@ -45,7 +45,7 @@ Every data command SHALL print readable text by default. With `--json`, it SHALL
 - **THEN** that call is listed with the time and text of its first matching line
 
 ### Requirement: Show a call
-`transcribr calls show <id>` SHALL print the call's details, followed by its transcript with one `[m:ss] text` line per segment. The details are the time, direction, caller number, duration, state, and each person's status and method. A call with no transcript SHALL say so in place of the transcript.
+`transcribr calls show <id>` SHALL print the call's details, followed by its transcript with one `[m:ss] text` line per segment. The details are the time, caller number, queue, who Ravon says answered, length, state, and each person's status and method. A call with no transcript SHALL say so in place of the transcript.
 
 #### Scenario: Transcribed call
 - **WHEN** a user runs `transcribr calls show <id>` for a transcribed call

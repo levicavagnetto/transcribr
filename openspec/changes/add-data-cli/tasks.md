@@ -5,10 +5,10 @@
 
 ## 2. Calls commands
 
-- [ ] 2.1 Implement `calls list` with `--from`, `--to`, `--person`, `--maybe`, `--unassigned`, `--state`, `--number` and `--limit` over `browse.list_calls`. Verify with tests for each filter, in both text and `--json`.
-- [ ] 2.2 Implement `calls search` with the same filters. Verify with a test that it finds a phrase and prints the matching line's time and text.
-- [ ] 2.3 Implement `calls show`, which prints the details and then `[m:ss] text` lines. Verify with tests for a transcribed call and an untranscribed call.
-- [ ] 2.4 Implement `calls transcribe` over `request_transcription`. Verify with tests for a Not transcribed call (Queued) and a Transcribed call (left alone).
+- [x] 2.1 Implement `calls list` with `--from`, `--to`, `--person`, `--maybe`, `--unassigned`, `--state`, `--number` and `--limit` over `browse.list_calls`. Verify with tests for each filter, in both text and `--json`.
+- [x] 2.2 Implement `calls search` with the same filters. Verify with a test that it finds a phrase and prints the matching line's time and text.
+- [x] 2.3 Implement `calls show`, which prints the details and then `[m:ss] text` lines. Verify with tests for a transcribed call and an untranscribed call.
+- [x] 2.4 Implement `calls transcribe` over `request_transcription`. Verify with tests for a Not transcribed call (Queued) and a Transcribed call (left alone).
 
 ## 3. People commands
 

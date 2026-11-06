@@ -14,6 +14,10 @@ from datetime import date
 from typing import Any, Protocol, TextIO
 
 from transcribr.attribution.profiles import Profiles
+from transcribr.settings import TIME_ZONE, Settings
+from transcribr.store.browse import CallFilter, call_detail, fts_phrase, list_calls, transcript
+from transcribr.store.calls import request_transcription
+from transcribr.timeutil import utcnow
 
 CALL_STATES = ("not_transcribed", "waiting", "processing", "transcribed", "failed")
 DEFAULT_LIMIT = 50
@@ -217,3 +221,147 @@ def run(
     else:
         print(text, file=out)
     return 0
+
+
+# --- calls ---------------------------------------------------------------------
+
+STATE_LABELS = {
+    "not_transcribed": "Not transcribed",
+    "waiting": "Queued",
+    "processing": "Transcribing",
+    "transcribed": "Transcribed",
+    "failed": "Failed",
+}
+STATUS_LABELS = {"confident": "Confident", "maybe": "Maybe"}
+METHOD_LABELS = {"name": "by name", "manual": "set by hand"}
+
+
+def clock(seconds: float) -> str:
+    """Seconds as m:ss, as in the web app."""
+    whole = int(seconds)
+    return f"{whole // 60}:{whole % 60:02d}"
+
+
+def _people_text(attributions: list[dict[str, Any]]) -> str:
+    if not attributions:
+        return "nobody"
+    return ", ".join(
+        f"{a['display_name']} ({STATUS_LABELS[a['status']]}, {METHOD_LABELS[a['method']]})"
+        for a in attributions
+    )
+
+
+def _call_line(call: dict[str, Any]) -> str:
+    return (
+        f"#{call['id']}  {call['start_local']}  {call['caller_number'] or 'unknown number'}"
+        f"  {call['minutes']:g} min  {STATE_LABELS[call['state']]}"
+        f"  people: {_people_text(call['attributions'])}"
+    )
+
+
+def _filter(conn: sqlite3.Connection, args: argparse.Namespace, text: str | None) -> CallFilter:
+    if args.unassigned and (args.person is not None or args.maybe):
+        raise CliError("invalid_filter", "--unassigned can't be combined with --person or --maybe.")
+    if args.limit < 0:
+        raise CliError("invalid_limit", "--limit must be 0 (all) or more.")
+    return CallFilter(
+        state=args.state,
+        start=args.start,
+        end=args.end,
+        text=text,
+        number=args.number,
+        person=find_person(conn, args.person) if args.person is not None else None,
+        maybe=args.maybe,
+        unassigned=args.unassigned,
+    )
+
+
+def _calls(
+    conn: sqlite3.Connection, args: argparse.Namespace, text: str | None
+) -> list[dict[str, Any]]:
+    where = _filter(conn, args, text)
+    limit = args.limit or conn.execute("SELECT count(*) FROM calls").fetchone()[0] or 1
+    page = list_calls(conn, where, zone=Settings(conn).get(TIME_ZONE), limit=limit, cursor=None)
+    return page.calls
+
+
+def calls_list(conn: sqlite3.Connection, args: argparse.Namespace) -> tuple[Any, str]:
+    calls = _calls(conn, args, None)
+    for call in calls:
+        del call["passage"]
+    text = "\n".join(_call_line(c) for c in calls) or "No calls match."
+    return {"calls": calls}, text
+
+
+def calls_search(conn: sqlite3.Connection, args: argparse.Namespace) -> tuple[Any, str]:
+    if fts_phrase(args.words) is None:
+        raise CliError("invalid_search", "Give at least one word to search for.")
+    calls = _calls(conn, args, args.words)
+    lines: list[str] = []
+    for call in calls:
+        passage = call.pop("passage")
+        call["match"] = {
+            "at_s": passage["at_s"],
+            "text": "".join(p["text"] for p in passage["parts"]),
+        }
+        lines.append(_call_line(call))
+        lines.append(f"    [{clock(passage['at_s'])}] {call['match']['text']}")
+    return {"calls": calls}, "\n".join(lines) or "No calls match."
+
+
+def calls_show(conn: sqlite3.Connection, args: argparse.Namespace) -> tuple[Any, str]:
+    detail = call_detail(conn, args.call_id)
+    if detail is None:
+        raise CliError("call_not_found", f"No call {args.call_id} is listed.")
+    lines = [
+        f"Call #{detail['id']}",
+        f"Time: {detail['start_local']}",
+        f"Caller: {detail['caller_number'] or 'unknown number'}",
+        f"Queue: {detail['queue_label'] or detail['queue']}",
+        f"Answered by (Ravon): {detail['answered_by'] or 'unknown'}",
+        f"Length: {detail['minutes']:g} min",
+        f"State: {STATE_LABELS[detail['state']]}",
+        f"People: {_people_text(detail['attributions'])}",
+        "",
+    ]
+    lines.extend(_people_hits(detail["attributions"]))
+    words = transcript(conn, args.call_id)
+    if words is None:
+        lines.append("No transcript yet.")
+    elif words["no_speech"] or not words["segments"]:
+        lines.append("Transcribed, but no speech was found.")
+    else:
+        lines.extend(f"[{clock(s['start_s'])}] {s['text']}" for s in words["segments"])
+    return {"call": detail, "transcript": words}, "\n".join(lines).rstrip()
+
+
+def _people_hits(attributions: list[dict[str, Any]]) -> list[str]:
+    hits = [
+        f"{a['display_name']}: heard {a['name_heard']!r} at {clock(a['name_at_s'])}"
+        for a in attributions
+        if a["name_heard"] and a["name_at_s"] is not None
+    ]
+    return [*hits, ""] if hits else []
+
+
+def calls_transcribe(conn: sqlite3.Connection, args: argparse.Namespace) -> tuple[Any, str]:
+    require_call(conn, args.call_id)
+    queued = request_transcription(conn, args.call_id, utcnow())
+    state = conn.execute("SELECT state FROM calls WHERE id = ?", (args.call_id,)).fetchone()[0]
+    label = STATE_LABELS[state]
+    text = (
+        f"Call #{args.call_id} is queued for transcription."
+        if queued
+        else f"Call #{args.call_id} was left alone; it is {label}."
+    )
+    return {"call_id": args.call_id, "queued": queued, "state": state}, text
+
+
+HANDLERS.update(
+    {
+        ("calls", "list"): calls_list,
+        ("calls", "search"): calls_search,
+        ("calls", "show"): calls_show,
+        ("calls", "transcribe"): calls_transcribe,
+    }
+)
