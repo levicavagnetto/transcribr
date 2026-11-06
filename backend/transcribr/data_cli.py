@@ -13,9 +13,18 @@ from collections.abc import Callable
 from datetime import date
 from typing import Any, Protocol, TextIO
 
-from transcribr.attribution.profiles import Profiles
+from transcribr.attribution.matching import Attributions
+from transcribr.attribution.profiles import Profile, ProfileError, Profiles
 from transcribr.settings import TIME_ZONE, Settings
-from transcribr.store.browse import CallFilter, call_detail, fts_phrase, list_calls, transcript
+from transcribr.store.browse import (
+    CallFilter,
+    attributions,
+    call_detail,
+    fts_phrase,
+    list_calls,
+    people_counts,
+    transcript,
+)
 from transcribr.store.calls import request_transcription
 from transcribr.timeutil import utcnow
 
@@ -201,9 +210,7 @@ def run(
     err = err or sys.stderr
     as_json: bool = args.json
     try:
-        handler = HANDLERS.get((args.command, args.action))
-        if handler is None:
-            raise CliError("not_available", "This command is not built yet.")
+        handler = HANDLERS[(args.command, args.action)]
         conn = open_database()
         try:
             value, text = handler(conn, args)
@@ -363,5 +370,72 @@ HANDLERS.update(
         ("calls", "search"): calls_search,
         ("calls", "show"): calls_show,
         ("calls", "transcribe"): calls_transcribe,
+    }
+)
+
+
+# --- people --------------------------------------------------------------------
+
+
+def _person_json(profile: Profile, counts: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": profile.id,
+        "display_name": profile.display_name,
+        "variants": list(profile.variants),
+        "calls": counts.get("calls", 0),
+        "maybe_calls": counts.get("maybe_calls", 0),
+    }
+
+
+def _person_line(person: dict[str, Any]) -> str:
+    return (
+        f"#{person['id']}  {person['display_name']}  (heard as: {', '.join(person['variants'])})"
+        f"  {person['calls']} calls, {person['maybe_calls']} still Maybe"
+    )
+
+
+def _counts(conn: sqlite3.Connection) -> dict[int, dict[str, Any]]:
+    return {p["id"]: p for p in people_counts(conn)["people"]}
+
+
+def people_list(conn: sqlite3.Connection, args: argparse.Namespace) -> tuple[Any, str]:
+    del args
+    counts = _counts(conn)
+    people = [_person_json(p, counts.get(p.id, {})) for p in Profiles(conn).everyone()]
+    text = "\n".join(_person_line(p) for p in people) or "Nobody has been added yet."
+    return {"people": people}, text
+
+
+def people_add(conn: sqlite3.Connection, args: argparse.Namespace) -> tuple[Any, str]:
+    try:
+        profile = Profiles(conn).create(args.name, args.variant)
+    except ProfileError as error:
+        raise CliError(error.code, error.message) from None
+    person = _person_json(profile, {})
+    return {"person": person}, (
+        f"Added #{profile.id} {profile.display_name}. Every call will be rematched shortly."
+    )
+
+
+def _decide(conn: sqlite3.Connection, args: argparse.Namespace, done: str) -> tuple[Any, str]:
+    profile_id = find_person(conn, args.person)
+    require_call(conn, args.call_id)
+    try:
+        getattr(Attributions(conn), args.action)(args.call_id, profile_id)
+    except ProfileError as error:
+        raise CliError(error.code, error.message) from None
+    people = attributions(conn, [args.call_id]).get(args.call_id, [])
+    name = Profiles(conn).get(profile_id).display_name
+    text = f"{name} {done} call #{args.call_id}.\nPeople: {_people_text(people)}"
+    return {"call_id": args.call_id, "attributions": people}, text
+
+
+HANDLERS.update(
+    {
+        ("people", "list"): people_list,
+        ("people", "add"): people_add,
+        ("people", "claim"): lambda conn, args: _decide(conn, args, "is now Confident on"),
+        ("people", "confirm"): lambda conn, args: _decide(conn, args, "is now Confident on"),
+        ("people", "reject"): lambda conn, args: _decide(conn, args, "is marked as not on"),
     }
 )

@@ -12,8 +12,8 @@
 
 ## 3. People commands
 
-- [ ] 3.1 Implement `people list` and `people add` (with `--variant`). Verify with tests that a rematch is queued on add and that duplicate or invalid names give the same errors as the People screen.
-- [ ] 3.2 Implement `people claim`, `people confirm` and `people reject` over `Attributions`. Verify with tests that confirm makes a call Confident with method manual, and that a rejected call stays rejected after `rematch_all`.
+- [x] 3.1 Implement `people list` and `people add` (with `--variant`). Verify with tests that a rematch is queued on add and that duplicate or invalid names give the same errors as the People screen.
+- [x] 3.2 Implement `people claim`, `people confirm` and `people reject` over `Attributions`. Verify with tests that confirm makes a call Confident with method manual, and that a rejected call stays rejected after `rematch_all`.
 
 ## 4. Docs and stack check
 
