@@ -66,7 +66,7 @@ Opening a call SHALL show its start time, length, caller number, answered-by tex
 - **THEN** the page says the recording had no recognizable speech
 
 ### Requirement: Copy for ChatGPT
-For a transcribed call, a single click SHALL copy the instance's research prompt, then the call's date, time and length, then the transcript as timestamped lines without speaker labels, ready to paste into ChatGPT. The caller's phone number SHALL be left out unless the user includes it for that copy. Copying SHALL work when the app is served over plain HTTP on the shop network. Before copying, the user SHALL be able to see exactly the text that will be copied, and the preview SHALL follow the phone-number choice.
+For a transcribed call, one click SHALL copy the instance's research prompt, then the call's date, time and length, then the transcript as timestamped lines without speaker labels. The caller's number SHALL be left out unless the user includes it for that copy. Copying SHALL work over plain HTTP on the shop network. Before copying, the user SHALL be able to preview the exact text, following the phone-number choice.
 
 #### Scenario: Copy a call
 - **WHEN** a user clicks Copy for ChatGPT on a transcribed call
