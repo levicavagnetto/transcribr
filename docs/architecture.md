@@ -1,6 +1,6 @@
 # Transcribr v2 architecture (draft)
 
-Status: approved 2026-10-22. Implemented through three OpenSpec changes in order: `add-call-transcription-core`, `add-call-browser`, `add-call-attribution` (then `add-mcp-server`). Each change's `design.md` holds its decisions; keep this overview in sync with them.
+Status: approved 2026-10-22. Implemented through four OpenSpec changes in order: `add-call-transcription-core`, `add-call-browser`, `add-call-attribution`, `add-data-cli`. Each change's `design.md` holds its decisions; keep this overview in sync with them.
 
 ## Block diagram
 
@@ -20,14 +20,13 @@ flowchart LR
         MA["Matcher (per call)<br/>name in opening lines<br/>→ Maybe for that person"]
         DB[("SQLite<br/>calls, transcripts + FTS,<br/>profiles, attributions, settings")]
         API["FastAPI<br/>REST API"]
+        CLI["Data CLI<br/>transcribr calls / people<br/>text or --json"]
         UI["React UI<br/>calls, filters, transcript,<br/>Copy for ChatGPT, profiles, settings"]
     end
 
-    MCP["MCP server, read-only (phase 2)<br/>thin client of the REST API<br/>no Ravon, DB or credential access"]
     VOL[("/data volume<br/>db, settings, models")]
     BROWSER["Staff browsers<br/>(shop network)"]
-    TUN["Secure tunnel + OAuth<br/>(phase 2)"]
-    GPT["ChatGPT<br/>(Plus/Pro, developer mode)"]
+    LLM["LLMs and scripts on the shop PC<br/>docker compose exec web ..."]
 
     RS --> RC
     RA --> RC
@@ -43,12 +42,9 @@ flowchart LR
     DB --> API
     API --> UI
     UI --> BROWSER
-    API -.->|"REST, read-only token"| MCP
-    MCP -.-> TUN -.-> GPT
+    DB --> CLI
+    CLI --> LLM
     DB --- VOL
-
-    classDef later stroke-dasharray: 5 5;
-    class MCP,TUN,GPT later;
 ```
 
 ## Components
@@ -62,7 +58,7 @@ flowchart LR
 | Matcher | Marks a call as a Maybe for a profile when one of its name spellings is heard in the first 30 seconds of speech. Only a person's Confirm or Add makes a call Confident, and Not <person> removes a match for good. It never says who said which line. Voice matching was tried and removed: it couldn't tell the shop's service writers apart on phone audio. |
 | SQLite | All state: calls (every listed call), transcripts with full-text search, profiles, attributions, settings. |
 | FastAPI + React UI | One open view of all calls with per-profile, Unassigned and Maybe filters; transcript view with Copy for ChatGPT; profile setup; settings. |
-| MCP server (phase 2) | A separate, thin client of the transcribr REST API, like the UI. Exposes read-only tools and has no access to Ravon, the database or credentials. Only transcribr talks to Ravon. Reached by ChatGPT through a secure tunnel with OAuth. |
+| Data CLI | `transcribr calls` and `transcribr people`, run in the web container with `docker compose exec`. Lists, searches and shows calls, requests transcription, adds people, and claims, confirms or rejects calls. Prints text, or `--json` for LLMs and scripts. Works on the database with the same code as the API, needs no login, and never contacts Ravon. |
 
 ## Decisions so far
 
@@ -71,7 +67,7 @@ flowchart LR
 - Ravon's user/extension filters do not identify the service writer; attribution comes from the name heard in the transcript and from people's own decisions.
 - People are configured per instance in the UI, never hard-coded.
 - Everyone on the shop network sees all calls and can use every call action without logging in; profiles are filters. People and Settings are in an admin area at `/admin`, behind one admin login created on the first visit with a setup code from the server log. Attribution is stored as data so access can be made stricter later.
-- Research happens in the service writer's own ChatGPT: Copy for ChatGPT in phase 1, and in phase 2 a read-only MCP connector to transcribr. ChatGPT asks transcribr for transcripts (ChatGPT → MCP server → transcribr API → transcribr's database). LLMs never talk to Ravon; only transcribr does.
+- Research happens in the service writer's own AI tool. On a call, Copy for ChatGPT copies the transcript. Any tool that can run commands can use the data CLI (LLM → `docker compose exec web transcribr ...` → transcribr's database). Nothing is hosted for LLMs. A hosted MCP server for ChatGPT, with a tunnel and OAuth, was planned and then dropped as more moving parts than the shop needs. LLMs never talk to Ravon; only transcribr does.
 - Audio is not stored; it is fetched from Ravon when needed.
 
 ## UI mockups

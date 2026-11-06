@@ -128,6 +128,31 @@ To restore, on the same or another computer that has this folder and a `.env`:
 
    In Windows PowerShell, write the `run` command on one line without the `\`.
 
+## Command line
+
+People, scripts and AI tools that can run commands, such as Claude Code or Codex, can
+read and work with calls from a terminal. Run these from this folder while the app is up:
+
+```sh
+docker compose exec web transcribr calls list --person Nolan --maybe --limit 10
+docker compose exec web transcribr calls search "brake pads" --from 2026-11-01
+docker compose exec web transcribr calls show 1234
+docker compose exec web transcribr calls transcribe 1234
+docker compose exec web transcribr people list
+docker compose exec web transcribr people add "Nolan" --variant Nolan --variant Nolen
+docker compose exec web transcribr people confirm Nolan 1234
+```
+
+- **`calls list`** takes `--from`, `--to`, `--person`, `--maybe`, `--unassigned`, `--state`, `--number` and `--limit`. Use `--limit 0` for all calls.
+- **`calls search`** takes the same options.
+- **`people claim`, `confirm` and `reject`** do the same as the buttons on a call.
+- **People** can be given by name or by id.
+- **`--json`** prints one JSON document instead of text, which is easiest for an AI to read.
+- **Help:** `docker compose exec web transcribr calls --help` lists every command, and each command's `--help` shows an example.
+
+These commands work on the database directly. They need no login and never contact Ravon,
+so anyone who can run commands on this computer can read every call and change who is on it.
+
 ## Logs
 
 `docker compose logs web` and `docker compose logs worker` show each service's log as JSON

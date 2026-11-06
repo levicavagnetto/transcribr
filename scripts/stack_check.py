@@ -334,6 +334,7 @@ def smoke(stack: Stack) -> None:
 
     find_and_read_a_call(stack)
     attribution(stack, person)
+    data_cli(stack)
 
     step("the home page loads and its counts match the database")
     home = stack.web.get("/")
@@ -460,6 +461,29 @@ def attribution(stack: Stack, person: int) -> None:
     if stack.one(f"SELECT status FROM attributions WHERE call_id = {MISSED_CALL}") != "rejected":  # noqa: S608
         raise StepFailed("the rejection was not kept")
     print("still Confident and still rejected after the rematch")
+
+
+def cli_json(stack: Stack, *args: str) -> Any:
+    out = stack.compose("exec", "-T", "web", "transcribr", *args, "--json").stdout
+    return json.loads(out)
+
+
+def data_cli(stack: Stack) -> None:
+    """The data commands in the web container (add-data-cli 4.2)."""
+    step("the command line lists the person's calls and shows a transcript as JSON")
+    listed = cli_json(stack, "calls", "list", "--person", "nolan")
+    if [c["id"] for c in listed["calls"]] != [AUTO_CALL]:
+        raise StepFailed(f"calls list --person nolan: {[c['id'] for c in listed['calls']]}")
+    shown = cli_json(stack, "calls", "show", str(AUTO_CALL))
+    lines = stack.one(f"SELECT count(*) FROM segments WHERE call_id = {AUTO_CALL}")  # noqa: S608
+    if shown["call"]["id"] != AUTO_CALL or len(shown["transcript"]["segments"]) != lines:
+        raise StepFailed(f"calls show {AUTO_CALL}: {str(shown)[:300]}")
+    missing = stack.compose(
+        "exec", "-T", "web", "transcribr", "calls", "show", "999999", "--json", check=False
+    )
+    if missing.returncode != 1 or json.loads(missing.stdout)["error"] != "call_not_found":
+        raise StepFailed(f"calls show 999999: exit {missing.returncode} {missing.stdout}")
+    print(f"listed only call {AUTO_CALL}, showed its {lines} lines, and refused an unknown call")
 
 
 def check_ravon_now(stack: Stack) -> None:

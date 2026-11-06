@@ -17,8 +17,8 @@
 
 ## 4. Docs and stack check
 
-- [ ] 4.1 Add a "Command line" section to the README. Replace the MCP wording in `openspec/config.yaml` (constraint and build order) and in `docs/architecture.md` with the CLI. Verify that the README examples run as written against the stack.
-- [ ] 4.2 Add a step to `scripts/stack_check.py` that runs `docker compose exec web transcribr calls list --json` and `calls show` on a smoke-test call and checks the JSON. Verify that the full `scripts/check.py` passes.
+- [x] 4.1 Add a "Command line" section to the README. Replace the MCP wording in `openspec/config.yaml` (constraint and build order) and in `docs/architecture.md` with the CLI. Verify that the README examples run as written against the stack.
+- [x] 4.2 Add a step to `scripts/stack_check.py` that runs `docker compose exec web transcribr calls list --json` and `calls show` on a smoke-test call and checks the JSON. Verify that the full `scripts/check.py` passes.
 
 ## Workflow follow-up
 
