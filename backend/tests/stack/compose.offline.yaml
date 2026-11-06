@@ -1,0 +1,32 @@
+# Test overlay for compose.yaml: the worker gets no network at all except a loopback it shares
+# with the fake Ravon. This checks that a running instance needs nothing but Ravon (spec
+# deployment, "No downloads at runtime"). The fake owns that network namespace and the worker
+# joins it, so the worker can be stopped, crashed or replaced while the fake keeps its calls.
+#
+#   docker compose -p transcribr-stack -f compose.yaml -f backend/tests/stack/compose.offline.yaml \
+#     --env-file backend/tests/stack/stack.env up -d --wait
+#
+# Paths here resolve from the first file's folder (the repo root).
+
+services:
+  web:
+    environment:
+      # Nothing answers here in the web container, so Listen there fails safely instead of
+      # sending the fake credentials to the real Ravon. Listen is checked from the worker's
+      # namespace instead (scripts/stack_check.py, smoke).
+      RAVON_BASE_URL: http://127.0.0.1:8090
+
+  worker:
+    network_mode: service:fake-ravon
+    environment:
+      RAVON_BASE_URL: http://127.0.0.1:8090
+
+  fake-ravon:
+    image: ${TRANSCRIBR_TEST_IMAGE:-transcribr:test}
+    build:
+      context: .
+      target: test
+    network_mode: none
+    working_dir: /app
+    command: ["python", "-m", "tests.fake_ravon.serve"]
+    restart: unless-stopped

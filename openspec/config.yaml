@@ -13,16 +13,19 @@ context: |
     crashes and Ravon outages. No janky workarounds.
   - Ravon is read-only. Only the transcribr app talks to Ravon, through a request allow
     list. Never call any action that changes data there (live-call tools, deletes, edits).
-  - LLMs never talk to Ravon. ChatGPT -> MCP server -> transcribr REST API -> transcribr DB.
-    The MCP server is a thin read-only client of the REST API with no DB, Ravon or
-    credential access.
+  - LLMs never talk to Ravon. LLM -> transcribr CLI (`docker compose exec web transcribr
+    calls|people ...`) -> transcribr DB. The data commands never contact Ravon or touch
+    credentials. Nothing is hosted for LLMs: no MCP server, tunnel or OAuth.
   - Ravon's user/extension filters do not identify the service writer (inbound calls land
-    on the main store line). Attribution comes from the transcript (name said in the call)
-    and voiceprints, stored per call as person + method + confidence.
-  - Profiles (people, name variants, voiceprints) and all settings are configured per
+    on the main store line). Attribution is per call, never per line: it comes from the
+    transcript (a name said in the call makes a Maybe) and from people's own claim, confirm
+    and reject, stored per call as person + method + status. Voice matching was tried and
+    removed: it could not tell the shop's service writers apart on phone audio.
+    Transcripts have no speaker labels (diarization was dropped after live testing).
+  - Profiles (people and name variants) and all settings are configured per
     instance in the UI and stored in /data. Nothing person- or store-specific in code.
   - Visibility: everyone on the shop network sees all calls and can use every call-screen
-    action (including "Speaker N is <person>") without logging in; profiles are filters.
+    action (claim, reject, confirm) without logging in; profiles are filters.
     People and Settings live under /admin behind one admin login, created on first visit
     with a one-time setup code from the server log. The server enforces admin auth on
     every /api/v1/admin route; hiding links is not protection.
@@ -35,10 +38,14 @@ context: |
   - Runs on a shop PC from one Docker image (multi-stage: Node builds the React +
     TypeScript + MUI UI) as two compose services sharing one named volume: `web`
     (FastAPI serves UI + API) and `worker` (poller + pipeline). Must run on
-    Linux, Windows (Docker Desktop/WSL2) and macOS, amd64 and arm64. CPU only, no GPU.
-  - Phase 1: Ravon -> transcribe -> attribute -> UI with "Copy for ChatGPT".
-    Phase 2: read-only MCP server reachable by ChatGPT (Plus/Pro developer mode) through
-    a secure tunnel with OAuth.
+    Linux, Windows (Docker Desktop/WSL2) and macOS, amd64 (64-bit Intel/AMD). CPU only, no GPU.
+  - Build order (one OpenSpec change each, archived before the next starts):
+    add-call-transcription-core (Ravon -> transcribe, settings, admin, shell, Docker),
+    add-call-browser (call list, detail, Listen, Copy for ChatGPT),
+    add-call-attribution (people, name matching, People screen),
+    add-data-cli (calls and people commands for LLMs and scripts).
+    Later changes mostly add requirements to earlier capabilities; when real use shows an
+    earlier requirement is wrong, a later change modifies it through its delta specs.
 
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.

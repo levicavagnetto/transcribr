@@ -1,0 +1,20 @@
+# Only the frontend and backend sources go into the image build.
+**
+!frontend
+!backend
+frontend/node_modules/
+frontend/dist/
+backend/.venv/
+backend/models/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/.ruff_cache/
+# Never: secrets, captures, instance data, real audio (test fixtures are allowed below)
+**/.env
+**/.env.*
+**/*.har
+**/*.db
+**/*.db-*
+**/*.mp3
+**/*.wav
+!backend/tests/fixtures/audio/*.mp3
