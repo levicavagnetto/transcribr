@@ -1,7 +1,7 @@
 ## 1. Command skeleton and output
 
-- [ ] 1.1 Add `transcribr/data_cli.py` with the `calls` and `people` subparsers, each with help text and an example, and wire them into `cli.py`. Verify that a test checks `transcribr calls --help` and `transcribr people --help` name every subcommand.
-- [ ] 1.2 Add the shared `--json` flag, the error output (D6), the no-database error and person lookup by id or name (D3). Verify with tests for an unknown call, an unknown name, a name shared by two people, and a missing database.
+- [x] 1.1 Add `transcribr/data_cli.py` with the `calls` and `people` subparsers, each with help text and an example, and wire them into `cli.py`. Verify that a test checks `transcribr calls --help` and `transcribr people --help` name every subcommand.
+- [x] 1.2 Add the shared `--json` flag, the error output (D6), the no-database error and person lookup by id or name (D3). Verify with tests for an unknown call, an unknown name, a name shared by two people, and a missing database.
 
 ## 2. Calls commands
 

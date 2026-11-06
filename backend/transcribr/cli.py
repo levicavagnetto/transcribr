@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from transcribr import __version__
+from transcribr.data_cli import CliError, add_data_commands, run
 from transcribr.logs import setup_command_logging
 
 
@@ -41,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
         "worker-health", help="exit 0 if the worker's heartbeat is recent (Docker health check)"
     )
     commands.add_parser("backup", help="write a copy of the database to the backups folder")
+    add_data_commands(commands)
     fetch = commands.add_parser("fetch-models", help="download and verify the speech models")
     fetch.add_argument(
         "--dest", type=Path, default=None, help="folder (default: TRANSCRIBR_MODELS_DIR)"
@@ -57,6 +59,8 @@ def main(argv: Sequence[str] | None = None) -> int:  # noqa: PLR0911 - one retur
     if args.command is None:
         parser.print_help()
         return 0
+    if args.command in {"calls", "people"}:
+        return run(args, _data_database)
     if args.command in {"web", "worker"}:
         return _run_service(args.command)
     setup_command_logging()
@@ -114,6 +118,16 @@ def _open_database() -> sqlite3.Connection | None:
     if not path.exists():
         print(f"There is no Transcribr database at {path}.", file=sys.stderr)
         return None
+    return connect(path)
+
+
+def _data_database() -> sqlite3.Connection:
+    from transcribr.config import load_config  # noqa: PLC0415
+    from transcribr.store.db import connect  # noqa: PLC0415
+
+    path = load_config().database_path
+    if not path.exists():
+        raise CliError("no_database", f"There is no Transcribr database at {path}.")
     return connect(path)
 
 
