@@ -58,6 +58,25 @@ itself has to start with the computer:
 - **macOS:** in Docker Desktop, open **Settings → General** and tick **Start Docker Desktop
   when you sign in to your computer**.
 
+## Start and stop
+
+Run these from this folder (the one with `compose.yaml`).
+
+| To | Run |
+|---|---|
+| Start, or start again after a stop | `docker compose up -d` |
+| Check it's running (both services `healthy`) | `docker compose ps` |
+| Restart both services | `docker compose restart` |
+| Stop (calls and settings are kept) | `docker compose stop` |
+| Stop and remove the containers (data is kept) | `docker compose down` |
+
+A stopped app stays stopped until you start it, even after a reboot. Calls that end while it
+is stopped are listed as **Not transcribed** when it starts again; use **Transcribe** on the ones you need.
+
+Never run `docker compose down -v` or `docker volume rm`. They delete the volume, which holds
+the database: every call, transcript, person and setting. Make a backup first if you really
+mean to start over.
+
 ## First setup
 
 1. Click the small **Admin** link in the top bar of the web app.
